@@ -1,12 +1,26 @@
-name: Sync from upstream on push
+name: Sync from upstream
 
 on:
+  # Disparado pelo workflow notify-fork.yml no repo da organizacao.
+  # O filtro `types` e obrigatorio: sem ele a integracao da Vercel
+  # dispara este workflow ~7x por deploy (vercel.deployment.*).
   repository_dispatch:
-  push:
-    branches:
-      - main
+    types: [upstream-push]
+
+  # Permite disparar na mao pela aba Actions.
+  workflow_dispatch:
+
+  # Rede de seguranca caso o dispatch do upstream falhe.
+  # 5min e o intervalo minimo do GitHub; na pratica chega a cada ~15min.
   schedule:
-    - cron: '*/2 * * * *'
+    - cron: '*/5 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
 
 jobs:
   sync:
@@ -14,25 +28,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
 
       - name: Sync from upstream
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          
-          git remote add upstream https://github.com/Juninhos-Comunidade/trail-blazers.git || true
-          git fetch upstream main --force
-          
-          UPSTREAM_HASH=$(git rev-parse upstream/main)
-          LOCAL_HASH=$(git rev-parse main)
-          
-          if [ "$UPSTREAM_HASH" != "$LOCAL_HASH" ]; then
-            echo "Detectadas mudanças! Sincronizando..."
-            git checkout main
-            git merge --ff-only upstream/main || git rebase upstream/main
-            git push origin main --force-with-lease
-          else
-            echo "Nenhuma mudança detectada."
+          set -euo pipefail
+
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+          git remote add upstream https://github.com/Juninhos-Comunidade/trail-blazers.git 2>/dev/null || true
+          git fetch upstream main
+
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "main ja contem $(git rev-parse --short upstream/main). Nada a fazer."
+            exit 0
           fi
+
+          echo "Sincronizando upstream/main ($(git rev-parse --short upstream/main))..."
+          git merge --no-edit upstream/main
+          git push origin main
