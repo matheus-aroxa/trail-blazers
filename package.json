@@ -41,5 +41,10 @@
     "**/*.{json,md,yml,yaml}": [
       "npx prettier --write"
     ]
+  },
+  "dependencies": {
+    "@nestjs/mapped-types": "*",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1"
   }
 }

@@ -19,7 +19,7 @@ CREATE TABLE "users" (
 );
 
 -- CreateTable
-CREATE TABLE "jobs" (
+CREATE TABLE "vacancies" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
     "raw_description" TEXT NOT NULL,
@@ -29,14 +29,14 @@ CREATE TABLE "jobs" (
     "parse_confidence" DOUBLE PRECISION,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "jobs_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "vacancies_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "sessions" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
-    "job_id" UUID NOT NULL,
+    "vacancy_id" UUID NOT NULL,
     "status" "SessionStatus" NOT NULL DEFAULT 'preparing',
     "total_input_tokens" INTEGER NOT NULL DEFAULT 0,
     "total_output_tokens" INTEGER NOT NULL DEFAULT 0,
@@ -103,13 +103,13 @@ CREATE TABLE "reports" (
 CREATE UNIQUE INDEX "users_github_id_key" ON "users"("github_id");
 
 -- CreateIndex
-CREATE INDEX "jobs_user_id_idx" ON "jobs"("user_id");
+CREATE INDEX "vacancies_user_id_idx" ON "vacancies"("user_id");
 
 -- CreateIndex
 CREATE INDEX "sessions_user_id_idx" ON "sessions"("user_id");
 
 -- CreateIndex
-CREATE INDEX "sessions_job_id_idx" ON "sessions"("job_id");
+CREATE INDEX "sessions_vacancy_id_idx" ON "sessions"("vacancy_id");
 
 -- CreateIndex
 CREATE INDEX "session_repos_session_id_idx" ON "session_repos"("session_id");
@@ -127,13 +127,13 @@ CREATE UNIQUE INDEX "answers_question_id_key" ON "answers"("question_id");
 CREATE UNIQUE INDEX "reports_session_id_key" ON "reports"("session_id");
 
 -- AddForeignKey
-ALTER TABLE "jobs" ADD CONSTRAINT "jobs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "vacancies" ADD CONSTRAINT "vacancies_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "sessions" ADD CONSTRAINT "sessions_job_id_fkey" FOREIGN KEY ("job_id") REFERENCES "jobs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "sessions" ADD CONSTRAINT "sessions_vacancy_id_fkey" FOREIGN KEY ("vacancy_id") REFERENCES "vacancies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "session_repos" ADD CONSTRAINT "session_repos_session_id_fkey" FOREIGN KEY ("session_id") REFERENCES "sessions"("id") ON DELETE CASCADE ON UPDATE CASCADE;

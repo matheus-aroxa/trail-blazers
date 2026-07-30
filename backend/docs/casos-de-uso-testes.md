@@ -107,7 +107,7 @@ que a cobertura caia silenciosamente em PRs futuros.
 | CT-01.7 | Callback sem `req.user` lança `UnauthorizedException` | `auth.controller.ts` | Unitário |
 
 > CT-01.4 é o teste mais importante do documento: protege a regra de que o `sub` é o
-> identificador interno, da qual dependem o `JwtStrategy` e todas as FKs (`jobs`, `sessions`).
+> identificador interno, da qual dependem o `JwtStrategy` e todas as FKs (`vacancies`, `sessions`).
 
 ---
 

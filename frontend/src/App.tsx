@@ -32,7 +32,7 @@ export default function App() {
             <Route element={<RequireAuth />}>
               <Route path={paths.dashboard} element={<DashboardPage />} />
 
-              {/* Fluxo da entrevista: só a etapa 2 conversa com o backend. */}
+              {/* Fluxo da entrevista: as etapas 1 e 2 conversam com o backend. */}
               <Route path={paths.newInterview} element={<JobDescriptionPage />} />
               <Route path={paths.repoChooser} element={<RepositoryChooserPage />} />
               <Route path={paths.interview} element={<InterviewPage />} />

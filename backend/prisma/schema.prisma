@@ -30,13 +30,13 @@ model User {
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
-  jobs     Job[]
-  sessions Session[]
+  vacancies Vacancy[]
+  sessions  Session[]
 
   @@map("users")
 }
 
-model Job {
+model Vacancy {
   id              String   @id @default(uuid()) @db.Uuid
   userId          String   @map("user_id") @db.Uuid
   rawDescription  String   @map("raw_description")
@@ -50,13 +50,13 @@ model Job {
   sessions Session[]
 
   @@index([userId])
-  @@map("jobs")
+  @@map("vacancies")
 }
 
 model Session {
   id                 String        @id @default(uuid()) @db.Uuid
   userId             String        @map("user_id") @db.Uuid
-  jobId              String        @map("job_id") @db.Uuid
+  vacancyId          String        @map("vacancy_id") @db.Uuid
   status             SessionStatus @default(preparing)
   totalInputTokens   Int           @default(0) @map("total_input_tokens")
   totalOutputTokens  Int           @default(0) @map("total_output_tokens")
@@ -65,13 +65,13 @@ model Session {
   completedAt        DateTime?     @map("completed_at")
 
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  job       Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  vacancy   Vacancy       @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
   repos     SessionRepo[]
   questions Question[]
   report    Report?
 
   @@index([userId])
-  @@index([jobId])
+  @@index([vacancyId])
   @@map("sessions")
 }
 

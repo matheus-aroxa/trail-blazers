@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { Navigate } from "react-router-dom";
 
 import { AppHeader } from "@components/app/AppHeader";
 import { InterviewStepper } from "@components/app/InterviewStepper";
@@ -7,6 +8,7 @@ import { RepositoryList } from "@components/app/RepoList";
 import { ButtonLink, Button } from "@components/ui/Button";
 import { Spinner } from "@components/ui/Spinner";
 import { cn } from "@lib/cn";
+import { readVacancyDraft } from "@lib/interview-draft";
 import {
   fetchRepos,
   RepositoriesError,
@@ -44,6 +46,9 @@ function InfoIcon() {
 }
 
 export function RepositoryChooserPage() {
+  // A etapa analisa repositórios *contra uma vaga*; sem a vaga salva na etapa 1
+  // (acesso direto pela URL, ou reload em outra aba) não há o que analisar.
+  const [vacancy] = useState(readVacancyDraft);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<RepositoriesError | null>(null);
   const [repositories, setRepositories] = useState<RepoSummary[]>([]);
@@ -51,6 +56,8 @@ export function RepositoryChooserPage() {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    if (!vacancy) return;
+
     let cancelled = false;
 
     fetchRepos()
@@ -72,7 +79,7 @@ export function RepositoryChooserPage() {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, vacancy]);
 
   const retry = useCallback(() => {
     setStatus("loading");
@@ -96,6 +103,10 @@ export function RepositoryChooserPage() {
   // Sem lista utilizável, seguir sem repositório é a única saída da etapa.
   const offerSkip = status === "error" || (status === "success" && !hasRepositories);
 
+  if (!vacancy) {
+    return <Navigate to={paths.newInterview} replace />;
+  }
+
   return (
     <div className="min-h-screen animate-rise">
       <AppHeader label="Nova entrevista" />
@@ -113,6 +124,9 @@ export function RepositoryChooserPage() {
               Selecione até {SELECTION_LIMIT}{" "}
               {SELECTION_LIMIT === 1 ? "repositório" : "repositórios"} para uma
               análise mais focada.
+            </p>
+            <p className="mt-2 max-w-[62ch] truncate font-mono text-[11.5px] text-fg-muted">
+              Vaga #{vacancy.id.slice(0, 8)} · {vacancy.description}
             </p>
           </div>
 

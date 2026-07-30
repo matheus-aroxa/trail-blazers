@@ -1,0 +1,25 @@
+name: Notify fork
+
+# Avisa o fork matheus-aroxa/trail-blazers a cada push na main, para que ele
+# sincronize e faca o deploy na Vercel imediatamente (sem esperar o cron).
+#
+# Requer o secret FORK_DISPATCH_TOKEN: um PAT com permissao de escrita
+# (scope `repo`, ou fine-grained com Contents: read/write) no repositorio do fork.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger fork sync
+        run: |
+          set -euo pipefail
+          curl --fail-with-body -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.FORK_DISPATCH_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/matheus-aroxa/trail-blazers/dispatches \
+            -d '{"event_type":"upstream-push"}'

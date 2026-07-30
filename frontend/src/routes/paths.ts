@@ -8,9 +8,10 @@ export const paths = {
   dashboard: "/dashboard",
 
   /**
-   * Fluxo de criação de entrevista, em quatro etapas. Só a etapa de
-   * repositórios fala com o backend; as outras três são mocks navegáveis
-   * enquanto os épicos correspondentes não existem.
+   * Fluxo de criação de entrevista, em quatro etapas. As etapas de vaga
+   * (POST /vacancies) e de repositórios (GET /repositories) falam com o
+   * backend; a entrevista e o relatório seguem mocks navegáveis enquanto os
+   * épicos correspondentes não existem.
    */
   newInterview: "/entrevista/vaga",
   repoChooser: "/entrevista/repositorios",

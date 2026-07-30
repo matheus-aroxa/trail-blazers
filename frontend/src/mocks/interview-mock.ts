@@ -1,8 +1,10 @@
 /**
- * Dados fictícios das telas ainda não implementadas (vaga, entrevista e
- * relatório) e do histórico do dashboard. Existem só para dar um fluxo
- * navegável de ponta a ponta enquanto os épicos reais não chegam — nada aqui
- * vem do backend. Toda tela que consome este arquivo exibe o MockBanner.
+ * Dados fictícios das telas ainda não implementadas (entrevista e relatório) e
+ * do histórico do dashboard. Existem só para dar um fluxo navegável de ponta a
+ * ponta enquanto os épicos reais não chegam — nada aqui vem do backend. Toda
+ * tela que consome este arquivo exibe o MockBanner.
+ *
+ * A etapa da vaga saiu daqui: ela grava de verdade via POST /vacancies.
  */
 
 export interface MockSession {
@@ -46,40 +48,6 @@ export const mockSessions: MockSession[] = [
 
 export const mockSessionsSummary =
   "4 entrevistas · média 74/100 · melhor 84 · última há 2 dias";
-
-export const sampleJob = `Desenvolvedor(a) Full-Stack Júnior — Acme Tecnologia (São Paulo · híbrido)
-
-Procuramos uma pessoa desenvolvedora júnior para o time de Plataforma. Você vai construir features de ponta a ponta no nosso produto de gestão financeira para PMEs.
-
-O que você vai fazer:
-• Desenvolver interfaces em React com TypeScript
-• Criar e manter APIs REST em Node.js (NestJS)
-• Modelar dados em PostgreSQL
-• Escrever testes automatizados (Jest) e participar de code reviews
-
-O que esperamos:
-• Projetos práticos com React, Node.js e TypeScript (projetos pessoais contam!)
-• Noções de SQL e Git no dia a dia
-• Boa comunicação e vontade de aprender
-
-Diferenciais: Docker, AWS, testes E2E (Playwright).`;
-
-/** Resultado fingido da "análise" da vaga da etapa 1. */
-export const mockJobAnalysis = {
-  stack: [
-    { name: "React", color: "#61DAFB" },
-    { name: "Node.js", color: "#339933" },
-    { name: "TypeScript", color: "#3178C6" },
-    { name: "PostgreSQL", color: "#336791" },
-  ],
-  seniority: "Júnior",
-  skills: [
-    "APIs REST",
-    "Testes automatizados",
-    "Modelagem de dados",
-    "Comunicação",
-  ],
-};
 
 export type QuestionKind = "logic" | "scenario" | "project" | "code";
 

@@ -1,44 +1,100 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { AppHeader } from "@components/app/AppHeader";
 import { InterviewStepper } from "@components/app/InterviewStepper";
-import { MockScreenHeader } from "@components/mock/MockBanner";
 import { Button, ButtonLink } from "@components/ui/Button";
+import { Spinner } from "@components/ui/Spinner";
 import { CheckIcon } from "@components/ui/icons";
-import { mockJobAnalysis, sampleJob } from "@mocks/interview-mock";
+import { sampleVacancy } from "@content/sample-vacancy";
+import { cn } from "@lib/cn";
+import {
+  clearVacancyDraft,
+  readVacancyDraft,
+  writeVacancyDraft,
+  type VacancyDraft,
+} from "@lib/interview-draft";
+import {
+  createVacancy,
+  DESCRIPTION_MAX_LENGTH,
+  DESCRIPTION_MIN_LENGTH,
+  VacancyError,
+} from "@lib/vacancies-api";
 import { paths } from "@routes/paths";
 
-type AnalysisStatus = "idle" | "analyzing" | "done";
+type Status = "idle" | "saving" | "saved";
+
+/** Mesma checagem do backend (RF-2.1), para avisar antes de enviar. */
+function describeLengthProblem(text: string): string | null {
+  const length = text.trim().length;
+
+  if (length === 0) return "Cole a descrição da vaga para continuar.";
+
+  if (length < DESCRIPTION_MIN_LENGTH) {
+    const missing = DESCRIPTION_MIN_LENGTH - length;
+    return `A descrição precisa ter no mínimo ${DESCRIPTION_MIN_LENGTH} caracteres — faltam ${missing}.`;
+  }
+
+  if (length > DESCRIPTION_MAX_LENGTH) {
+    const excess = length - DESCRIPTION_MAX_LENGTH;
+    return `A descrição excede o limite de ${DESCRIPTION_MAX_LENGTH} caracteres — remova ${excess}.`;
+  }
+
+  return null;
+}
 
 export function JobDescriptionPage() {
   const navigate = useNavigate();
-  const [jobText, setJobText] = useState("");
-  const [status, setStatus] = useState<AnalysisStatus>("idle");
-  const timer = useRef<number | undefined>(undefined);
+  // Voltar da etapa 2 (ou recarregar a página) reencontra a vaga já salva, em
+  // vez de pedir o texto de novo e gravar uma segunda vaga igual.
+  const [draft] = useState(readVacancyDraft);
+  const [text, setText] = useState(draft?.description ?? "");
+  const [saved, setSaved] = useState<VacancyDraft | null>(draft);
+  const [status, setStatus] = useState<Status>(draft ? "saved" : "idle");
+  const [error, setError] = useState<VacancyError | null>(null);
 
-  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const lengthProblem = describeLengthProblem(text);
+  const tooLong = text.trim().length > DESCRIPTION_MAX_LENGTH;
 
-  const analyze = (text: string) => {
-    if (!text.trim()) return;
-    setStatus("analyzing");
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setStatus("done"), 1300);
+  const onChange = (next: string) => {
+    setText(next);
+    // Editar a vaga invalida o que já foi salvo: a etapa precisa salvar de novo.
+    if (status !== "idle") {
+      setStatus("idle");
+      setSaved(null);
+      clearVacancyDraft();
+    }
+    setError(null);
   };
 
-  const onChange = (text: string) => {
-    setJobText(text);
-    // Editar a vaga invalida a análise anterior.
-    if (status !== "idle") setStatus("idle");
-  };
+  const save = async () => {
+    const description = text.trim();
+    if (describeLengthProblem(description) || status === "saving") return;
 
-  const useSample = () => {
-    setJobText(sampleJob);
-    analyze(sampleJob);
+    setStatus("saving");
+    setError(null);
+
+    try {
+      const created = await createVacancy(description);
+      const next = { id: created.id, description: created.rawDescription };
+
+      setSaved(next);
+      // O id segue para as próximas etapas do fluxo.
+      writeVacancyDraft(next);
+      setStatus("saved");
+    } catch (cause) {
+      setError(
+        cause instanceof VacancyError
+          ? cause
+          : new VacancyError("Ocorreu uma falha inesperada ao salvar a vaga."),
+      );
+      setStatus("idle");
+    }
   };
 
   return (
     <div className="min-h-screen animate-rise">
-      <MockScreenHeader screen="descrição da vaga" label="Nova entrevista" />
+      <AppHeader label="Nova entrevista" />
 
       <main className="mx-auto w-full max-w-[760px] px-4 pt-8 pb-14 sm:px-6 sm:pt-10 sm:pb-18">
         <InterviewStepper current={1} className="mb-12" />
@@ -51,34 +107,85 @@ export function JobDescriptionPage() {
         </p>
 
         <textarea
-          value={jobText}
+          value={text}
           onChange={(event) => onChange(event.target.value)}
+          disabled={status === "saving"}
           placeholder="Cole aqui a descrição da vaga…"
           aria-label="Descrição da vaga"
-          className="min-h-[220px] w-full resize-y rounded-xl border border-border bg-surface px-4.5 py-4 text-[14.5px] leading-[1.6] text-fg transition-[border-color,box-shadow] duration-200 focus:border-trail-500 focus:shadow-[0_0_0_3px_--alpha(var(--color-trail-500)/20%)] focus:outline-none"
+          aria-invalid={tooLong}
+          aria-describedby="contador-descricao"
+          className="min-h-[220px] w-full resize-y rounded-xl border border-border bg-surface px-4.5 py-4 text-[14.5px] leading-[1.6] text-fg transition-[border-color,box-shadow] duration-200 focus:border-trail-500 focus:shadow-[0_0_0_3px_--alpha(var(--color-trail-500)/20%)] focus:outline-none disabled:opacity-60"
         />
 
         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3">
-          <span className="font-mono text-[11.5px] text-fg-muted">
-            {jobText.length > 0 ? `${jobText.length} caracteres` : ""}
+          <span
+            id="contador-descricao"
+            className={cn(
+              "font-mono text-[11.5px]",
+              tooLong ? "text-danger" : "text-fg-muted",
+            )}
+          >
+            {text.length > 0
+              ? `${text.length}/${DESCRIPTION_MAX_LENGTH} caracteres`
+              : ""}
           </span>
           <button
             type="button"
-            onClick={useSample}
-            className="rounded-full border border-dashed border-border px-3.5 py-1.5 font-mono text-[11.5px] text-fg-2 transition-colors duration-200 hover:border-trail-500 hover:text-trail-text"
+            onClick={() => onChange(sampleVacancy)}
+            disabled={status === "saving"}
+            className="rounded-full border border-dashed border-border px-3.5 py-1.5 font-mono text-[11.5px] text-fg-2 transition-colors duration-200 hover:border-trail-500 hover:text-trail-text disabled:opacity-60"
           >
             Usar vaga de exemplo
           </button>
         </div>
 
-        {status === "idle" && jobText.trim().length > 0 && (
-          <div className="mt-5">
-            <Button onClick={() => analyze(jobText)}>Analisar vaga</Button>
+        {error && (
+          <div
+            role="alert"
+            className="mt-5 rounded-lg border border-[--alpha(var(--color-danger)/45%)] bg-[--alpha(var(--color-danger)/8%)] px-4.5 py-4"
+          >
+            <p className="text-[14.5px] leading-[1.55] text-danger">
+              {error.detail}
+            </p>
+            {error.hint && (
+              <p className="mt-1 font-mono text-[11.5px] text-fg-muted">
+                {error.hint}
+              </p>
+            )}
+            {error.retryable && (
+              <Button variant="secondary" onClick={save} className="mt-3">
+                Tentar novamente
+              </Button>
+            )}
           </div>
         )}
 
-        {status === "analyzing" && <AnalyzingCard />}
-        {status === "done" && <AnalysisCard />}
+        {status === "idle" && text.trim().length > 0 && (
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Button onClick={save} disabled={lengthProblem !== null}>
+              Salvar vaga
+            </Button>
+            {lengthProblem && (
+              <span className="font-mono text-[11.5px] text-fg-muted">
+                {lengthProblem}
+              </span>
+            )}
+          </div>
+        )}
+
+        {status === "saving" && (
+          <div
+            aria-live="polite"
+            className="mt-7 flex items-center gap-2.5 rounded-lg border border-border bg-surface p-5.5"
+          >
+            <Spinner size={16} label="Salvando a vaga" />
+            <span className="font-mono text-xs text-fg-2">
+              Salvando a vaga…
+            </span>
+          </div>
+        )}
+
+        {status === "saved" && saved && <SavedCard vacancy={saved} />}
 
         <div className="mt-9 flex flex-wrap justify-between gap-3">
           <ButtonLink to={paths.dashboard} variant="ghost">
@@ -87,7 +194,7 @@ export function JobDescriptionPage() {
 
           <Button
             onClick={() => navigate(paths.repoChooser)}
-            disabled={status !== "done"}
+            disabled={status !== "saved"}
             className="max-sm:w-full"
           >
             Continuar →
@@ -98,95 +205,29 @@ export function JobDescriptionPage() {
   );
 }
 
-function ShimmerPill({ width }: { width: number }) {
-  return (
-    <div
-      style={{ width }}
-      className="h-[30px] animate-shimmer rounded-full bg-[linear-gradient(90deg,var(--color-surface-2)_25%,var(--color-border)_37%,var(--color-surface-2)_63%)] bg-[length:400%_100%]"
-    />
-  );
-}
-
-function AnalyzingCard() {
-  return (
-    <div
-      aria-label="Analisando a vaga"
-      className="mt-7 rounded-lg border border-border bg-surface p-5.5"
-    >
-      <div className="mb-4 flex items-center gap-2.5">
-        <span className="size-4 animate-spin rounded-full border-2 border-border border-t-trail-500" />
-        <span className="font-mono text-xs text-fg-2">Lendo a vaga…</span>
-      </div>
-      <div className="flex flex-wrap gap-2.5">
-        {[90, 110, 130, 80].map((width) => (
-          <ShimmerPill key={width} width={width} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AnalysisCard() {
+/**
+ * Confirmação do que o backend guardou. A leitura da vaga (stack, senioridade,
+ * competências-chave) depende do épico de análise; enquanto esses campos vierem
+ * nulos, a tela mostra o que existe de verdade em vez de inventar.
+ */
+function SavedCard({ vacancy }: { vacancy: VacancyDraft }) {
   return (
     <div className="mt-7 animate-rise rounded-lg border border-border bg-surface p-5.5">
-      <div className="mb-4.5 flex items-center gap-2 text-trail-text">
+      <div className="mb-4 flex items-center gap-2 text-trail-text">
         <CheckIcon size={14} />
         <span className="font-mono text-xs tracking-[0.08em] uppercase">
-          Entendemos a vaga assim
+          Vaga salva
         </span>
       </div>
 
-      <div className="flex flex-col gap-4">
-        <div>
-          <p className="mb-2 text-[12.5px] font-medium text-fg-muted">
-            Stack detectada
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {mockJobAnalysis.stack.map((item) => (
-              <span
-                key={item.name}
-                className="inline-flex items-center gap-[7px] rounded-full border border-border bg-surface-2 px-3 py-[5px] font-mono text-[12.5px] font-medium"
-              >
-                <i
-                  aria-hidden="true"
-                  className="inline-block size-[9px] rounded-full"
-                  style={{ background: item.color }}
-                />
-                {item.name}
-              </span>
-            ))}
-          </div>
-        </div>
+      <p className="text-[14.5px] leading-[1.55] text-fg-2">
+        Guardamos a descrição desta vaga na sua conta. Agora escolha os
+        repositórios que entram na análise.
+      </p>
 
-        <div>
-          <p className="mb-2 text-[12.5px] font-medium text-fg-muted">
-            Senioridade
-          </p>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[--alpha(var(--color-info)/15%)] px-3 py-[5px] text-[13px] font-medium text-info">
-            <i
-              aria-hidden="true"
-              className="inline-block size-2 rounded-full bg-current"
-            />
-            {mockJobAnalysis.seniority}
-          </span>
-        </div>
-
-        <div>
-          <p className="mb-2 text-[12.5px] font-medium text-fg-muted">
-            Competências-chave
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {mockJobAnalysis.skills.map((skill) => (
-              <span
-                key={skill}
-                className="rounded-full border border-border bg-surface-2 px-3 py-[5px] text-[13px] font-medium text-fg-2"
-              >
-                {skill}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
+      <p className="mt-4 font-mono text-[11.5px] text-fg-muted">
+        {vacancy.description.length} caracteres · vaga #{vacancy.id.slice(0, 8)}
+      </p>
     </div>
   );
 }
