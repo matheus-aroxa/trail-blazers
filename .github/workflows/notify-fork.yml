@@ -12,6 +12,9 @@ on:
 
 jobs:
   dispatch:
+    # Este arquivo tambem chega ao fork pelo sync. O guard impede que o fork
+    # execute o notify (ele nao tem o secret) e evita o ciclo notify -> sync.
+    if: github.repository == 'Juninhos-Comunidade/trail-blazers'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger fork sync
