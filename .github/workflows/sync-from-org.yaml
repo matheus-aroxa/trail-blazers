@@ -1,0 +1,37 @@
+name: Sync from upstream on push
+
+on:
+  repository_dispatch:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '*/2 * * * *'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync from upstream
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          
+          git remote add upstream https://github.com/Juninhos-Comunidade/trail-blazers.git || true
+          git fetch upstream main --force
+          
+          UPSTREAM_HASH=$(git rev-parse upstream/main)
+          LOCAL_HASH=$(git rev-parse main)
+          
+          if [ "$UPSTREAM_HASH" != "$LOCAL_HASH" ]; then
+            echo "Detectadas mudanças! Sincronizando..."
+            git checkout main
+            git merge --ff-only upstream/main || git rebase upstream/main
+            git push origin main --force-with-lease
+          else
+            echo "Nenhuma mudança detectada."
+          fi
