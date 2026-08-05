@@ -41,7 +41,6 @@ describe('JwtStrategy', () => {
     expect(configMock.getOrThrow).toHaveBeenCalledWith('JWT_SECRET');
   });
 
-  // CT-04.1
   it('devolve o usuário autenticado a partir do `sub`', async () => {
     usersMock.findById.mockResolvedValue({
       id: 'uuid-interno',
@@ -65,7 +64,6 @@ describe('JwtStrategy', () => {
     expect(usersMock.findById).toHaveBeenCalledWith('uuid-interno');
   });
 
-  // o token cifrado não pode vazar para `req.user`
   it('não expõe o token do GitHub no usuário autenticado', async () => {
     usersMock.findById.mockResolvedValue({
       id: 'uuid-interno',
@@ -81,7 +79,6 @@ describe('JwtStrategy', () => {
     expect(user).not.toHaveProperty('githubTokenEncrypted');
   });
 
-  // os dados vêm do banco, não do payload — o JWT pode estar desatualizado
   it('prioriza os dados do banco sobre os do payload', async () => {
     usersMock.findById.mockResolvedValue({
       id: 'uuid-interno',
@@ -97,7 +94,6 @@ describe('JwtStrategy', () => {
     expect(user.email).toBeNull();
   });
 
-  // CT-04.2 — token válido de usuário que não existe mais
   it('lança UnauthorizedException quando o usuário não existe', async () => {
     usersMock.findById.mockResolvedValue(null);
 

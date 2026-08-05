@@ -2,10 +2,6 @@ import { useState } from "react";
 
 import { cn } from "../../lib/cn";
 
-/**
- * Avatar do GitHub, com a inicial do usuário como fallback — o backend ainda
- * não devolve `avatarUrl` no token (RF-1.4), e a imagem também pode falhar.
- */
 export function Avatar({
   username,
   src,

@@ -13,9 +13,6 @@ import { paths } from "@routes/paths";
 
 export function DashboardPage() {
   const { user } = useAuth();
-  // O histórico depende dos épicos de sessão e relatório; até lá o dashboard
-  // mostra sessões fictícias, com o alternador do protótipo para conferir
-  // também o estado vazio.
   const [showHistory, setShowHistory] = useState(true);
 
   return (

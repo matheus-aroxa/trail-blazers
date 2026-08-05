@@ -44,7 +44,6 @@ function toUser(payload: JwtPayload): AuthUser {
   };
 }
 
-/** Restaura a sessão do storage antes do primeiro render das rotas. */
 function readStoredSession(): Session | null {
   const token = readToken();
 
@@ -62,8 +61,6 @@ function readStoredSession(): Session | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // A sessão é restaurada do localStorage de forma síncrona, então as rotas
-  // protegidas já sabem no primeiro render se há alguém logado.
   const [session, setSession] = useState<Session | null>(readStoredSession);
   const [sessionEndReason, setSessionEndReason] =
     useState<SessionEndReason | null>(null);
@@ -90,8 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   }, []);
 
-  // RF-1.5: se a sessão expirar durante o uso, o usuário é avisado em vez de
-  // esbarrar num 401 silencioso na próxima requisição.
   useEffect(() => {
     if (!session?.expiresAt) {
       return;

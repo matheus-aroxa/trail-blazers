@@ -9,7 +9,6 @@ function scoreColor(score: number) {
   return "var(--color-danger)";
 }
 
-/** Cartão de uma entrevista já concluída, no histórico do dashboard. */
 export function SessionCard({ session }: { session: MockSession }) {
   return (
     <Link

@@ -5,7 +5,6 @@ export interface TrailStep {
   tone: "trail" | "ember";
 }
 
-/** Os três marcos da trilha, usados na landing e na orientação inicial (RF-1.4). */
 export const trailSteps: TrailStep[] = [
   {
     number: "01",

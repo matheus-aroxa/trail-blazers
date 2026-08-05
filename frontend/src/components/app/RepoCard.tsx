@@ -29,7 +29,6 @@ function languageColor(language: string) {
 interface RepositoryCardProps {
   repository: RepoSummary;
   selected?: boolean;
-  /** Limite de seleção atingido e este card não está selecionado. */
   locked?: boolean;
   onToggle?: (repository: RepoSummary) => void;
   className?: string;
@@ -97,7 +96,6 @@ export function RepositoryCard({
         )}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Sem wrap: nome longo trunca em vez de empurrar a pílula para outra linha. */}
           <div className="flex items-center gap-2">
             <span
               title={repository.name}
@@ -110,7 +108,6 @@ export function RepositoryCard({
             </span>
           </div>
 
-          {/* Três linhas sempre reservadas, tenha o repositório descrição ou não. */}
           <p
             title={repository.description ?? undefined}
             className="mt-1.5 mb-2.5 line-clamp-3 min-h-[calc(3*1.5*13.5px)] text-[13.5px] leading-[1.5] text-fg-2"

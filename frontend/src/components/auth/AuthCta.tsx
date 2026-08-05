@@ -4,10 +4,6 @@ import { ButtonLink } from "../ui/Button";
 import { GitHubIcon } from "../ui/icons";
 import type { ButtonSize } from "../ui/button-styles";
 
-/**
- * CTA principal da landing. Quem já tem sessão não é convidado a entrar de
- * novo — vai direto para o dashboard.
- */
 export function AuthCta({
   size = "lg",
   className,

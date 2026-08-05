@@ -6,7 +6,6 @@ describe('PrismaService', () => {
   let disconnect: jest.SpyInstance;
 
   beforeEach(() => {
-    // sem conexão real: só interessa que o ciclo de vida do Nest chame connect/disconnect
     service = new PrismaService();
     connect = jest.spyOn(service, '$connect').mockResolvedValue(undefined);
     disconnect = jest.spyOn(service, '$disconnect').mockResolvedValue(undefined);

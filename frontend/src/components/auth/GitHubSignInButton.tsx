@@ -5,10 +5,6 @@ import { Button } from "../ui/Button";
 import { GitHubIcon } from "../ui/icons";
 import type { ButtonSize } from "../ui/button-styles";
 
-/**
- * Dispara o OAuth e trava o botão até a navegação sair — o redirect leva um
- * instante e o clique duplo mandaria duas autorizações para o GitHub.
- */
 export function GitHubSignInButton({
   redirectTo,
   size = "lg",

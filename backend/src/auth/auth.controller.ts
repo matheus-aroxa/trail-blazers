@@ -6,7 +6,6 @@ import { Public } from './decorators/public.decorator';
 import { GithubAuthGuard } from './github-auth.guard';
 import { GithubUser } from './types/github-user';
 
-// único controller aberto: é por aqui que o usuário obtém o token
 @Public()
 @Controller('auth')
 export class AuthController {
@@ -17,9 +16,7 @@ export class AuthController {
 
   @Get('github')
   @UseGuards(GithubAuthGuard)
-  async githubAuth() {
-    //redireciona para o github
-  }
+  async githubAuth() {}
 
   @Get('github/callback')
   @UseGuards(GithubAuthGuard)

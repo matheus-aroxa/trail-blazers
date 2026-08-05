@@ -30,10 +30,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.dataset.theme = theme;
     try {
       localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch {
-      // Modo privativo ou storage cheio: a troca de tema ainda funciona nesta
-      // sessão, só não sobrevive a um reload.
-    }
+    } catch {}
   }, [theme]);
 
   const toggleTheme = useCallback(() => {

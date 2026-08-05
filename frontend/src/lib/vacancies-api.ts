@@ -1,35 +1,36 @@
 import { readToken } from "@auth/token-storage";
 import { API_URL } from "./env";
 
-/**
- * Limites da descrição, iguais aos do `CreateVacancyDto` no backend. Ficam
- * aqui para a tela avisar antes de gastar uma requisição — a validação que
- * vale continua sendo a do servidor.
- */
 export const DESCRIPTION_MIN_LENGTH = 50;
-export const DESCRIPTION_MAX_LENGTH = 5000;
+export const DESCRIPTION_MAX_LENGTH = 10_000;
 
-/** Vaga como o backend devolve no POST /vacancies (tabela `vacancies`). */
+export interface ParsedVacancyProfile {
+  technologies: string[];
+  seniorityLevel: "junior" | "mid" | "senior" | "lead" | "unknown";
+  keyCompetencies: string[];
+  confidence: "high" | "low";
+  outOfScope: boolean;
+}
+
+/** Estado do processo de análise no backend — responde só "já terminou?". */
+export type ParseStatus = "pending" | "done" | "failed";
+
+const PARSE_STATUSES: ParseStatus[] = ["pending", "done", "failed"];
+
 export interface Vacancy {
   id: string;
   userId: string;
   rawDescription: string;
-  /** Campos do parse da vaga; nulos até o épico de análise existir. */
-  parsedStack: unknown;
-  parsedSeniority: string | null;
-  parsedSkills: unknown;
-  parseConfidence: number | null;
+  parsedProfile: ParsedVacancyProfile | null;
+  parseStatus: ParseStatus;
+  parseFailureReason: string | null;
+  parsingCompleted: boolean;
   createdAt: string;
 }
 
-/**
- * Falha ao salvar a vaga, já traduzida para a tela: `detail` diz o que
- * aconteceu e `hint` sugere o que fazer. Mesmo contrato do `RepositoriesError`.
- */
 export class VacancyError extends Error {
   readonly detail: string;
   readonly hint?: string;
-  /** Tentar de novo só ajuda em falhas transitórias. */
   readonly retryable: boolean;
 
   constructor(detail: string, options: { hint?: string; retryable?: boolean } = {}) {
@@ -41,15 +42,27 @@ export class VacancyError extends Error {
   }
 }
 
-/** O ValidationPipe global responde com `message` em array; as outras, string. */
 type ErrorBody = { message?: string | string[] } | null;
+
+/**
+ * Em qual etapa o erro aconteceu. As mensagens precisam ser diferentes: durante
+ * o acompanhamento da análise a vaga já foi salva, então dizer "não conseguimos
+ * salvar" seria mentira.
+ */
+type ErrorContext = "save" | "analysis";
 
 function firstMessage(body: ErrorBody): string | undefined {
   if (Array.isArray(body?.message)) return body.message[0];
   return body?.message;
 }
 
-function mapErrorResponse(status: number, body: ErrorBody): VacancyError {
+function mapErrorResponse(
+  status: number,
+  body: ErrorBody,
+  context: ErrorContext,
+): VacancyError {
+  const saving = context === "save";
+
   if (status === 400) {
     return new VacancyError(
       firstMessage(body) ?? "A descrição da vaga não foi aceita.",
@@ -64,19 +77,64 @@ function mapErrorResponse(status: number, body: ErrorBody): VacancyError {
     });
   }
 
+  if (status === 404 && !saving) {
+    return new VacancyError("Não encontramos esta vaga no servidor.", {
+      hint: "Ela pode ter sido removida. Cadastre a vaga de novo.",
+      retryable: false,
+    });
+  }
+
   if (status >= 500) {
     return new VacancyError(
-      firstMessage(body) ?? "O servidor não conseguiu salvar a vaga.",
+      firstMessage(body) ??
+        (saving
+          ? "O servidor não conseguiu salvar a vaga."
+          : "O servidor não conseguiu responder sobre a análise."),
       { hint: "Costuma ser temporário." },
     );
   }
 
   return new VacancyError(
-    firstMessage(body) ?? `Não conseguimos salvar a vaga (código ${status}).`,
+    firstMessage(body) ??
+      (saving
+        ? `Não conseguimos salvar a vaga (código ${status}).`
+        : `Não conseguimos acompanhar a análise (código ${status}).`),
   );
 }
 
-/** RF-2.1: grava a descrição da vaga do usuário autenticado. */
+function ensureVacancy(payload: unknown): Vacancy {
+  const vacancy = payload as Partial<Vacancy> | null;
+
+  if (
+    typeof vacancy?.id !== "string" ||
+    typeof vacancy.rawDescription !== "string"
+  ) {
+    throw new VacancyError(
+      "O servidor respondeu num formato que não conseguimos ler.",
+      {
+        hint: "Se o backend acabou de ser atualizado, reinicie-o para carregar a versão nova.",
+        retryable: false,
+      },
+    );
+  }
+
+  // Backend antigo não manda parseStatus: deduzimos do parsingCompleted.
+  const parseStatus: ParseStatus = PARSE_STATUSES.includes(
+    vacancy.parseStatus as ParseStatus,
+  )
+    ? (vacancy.parseStatus as ParseStatus)
+    : vacancy.parsingCompleted
+      ? "done"
+      : "pending";
+
+  return {
+    ...(vacancy as Vacancy),
+    parseStatus,
+    parseFailureReason: vacancy.parseFailureReason ?? null,
+    parsingCompleted: parseStatus !== "pending",
+  };
+}
+
 export async function createVacancy(description: string): Promise<Vacancy> {
   const token = readToken();
 
@@ -92,7 +150,6 @@ export async function createVacancy(description: string): Promise<Vacancy> {
       body: JSON.stringify({ description }),
     });
   } catch {
-    // fetch só rejeita quando a requisição nem chegou a ser respondida.
     throw new VacancyError(
       "Não conseguimos falar com o servidor do InterviewTrail.",
       { hint: "Verifique sua conexão e tente de novo." },
@@ -103,14 +160,200 @@ export async function createVacancy(description: string): Promise<Vacancy> {
     throw mapErrorResponse(
       response.status,
       (await response.json().catch(() => null)) as ErrorBody,
+      "save",
     );
   }
 
+  let payload: unknown;
+
   try {
-    return (await response.json()) as Vacancy;
+    payload = await response.json();
   } catch {
     throw new VacancyError(
       "O servidor respondeu num formato que não conseguimos ler.",
     );
   }
+
+  return ensureVacancy(payload);
+}
+
+export async function getVacancy(id: string): Promise<Vacancy> {
+  const token = readToken();
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_URL}/vacancies/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch {
+    throw new VacancyError(
+      "Não conseguimos falar com o servidor do InterviewTrail.",
+      { hint: "Verifique sua conexão e tente de novo." },
+    );
+  }
+
+  if (!response.ok) {
+    throw mapErrorResponse(
+      response.status,
+      (await response.json().catch(() => null)) as ErrorBody,
+      "analysis",
+    );
+  }
+
+  let payload: unknown;
+
+  try {
+    payload = await response.json();
+  } catch {
+    throw new VacancyError(
+      "O servidor respondeu num formato que não conseguimos ler.",
+    );
+  }
+
+  return ensureVacancy(payload);
+}
+
+/**
+ * Como a análise terminou, já traduzido para o que a tela precisa mostrar.
+ * "ok" cobre inclusive a vaga fora de escopo: a IA leu e respondeu, isso é
+ * resultado, não falha.
+ */
+export type AnalysisOutcome =
+  | { state: "ok" }
+  | { state: "problem"; detail: string; hint: string; retryable: boolean };
+
+const CAN_CONTINUE =
+  "A vaga foi salva. Você pode seguir sem a análise, mas as perguntas serão mais genéricas.";
+
+/**
+ * Mensagem por motivo de falha. Cada uma precisa dizer de quem é o problema e
+ * se adianta tentar de novo — tentar de novo com a chave errada só repete o erro.
+ */
+const FAILURE_MESSAGE: Record<
+  string,
+  { detail: string; hint: string; retryable: boolean }
+> = {
+  invalid_api_key: {
+    detail: "A chave de acesso ao serviço de IA foi recusada.",
+    hint: "Isso é configuração do servidor, não da sua vaga. Avise quem cuida do ambiente — tentar de novo só vai funcionar depois que a chave for trocada.",
+    retryable: false,
+  },
+  timeout: {
+    detail: "O serviço de IA demorou demais e a análise foi interrompida.",
+    hint: `Costuma ser passageiro — vale tentar de novo. ${CAN_CONTINUE}`,
+    retryable: true,
+  },
+  invalid_response: {
+    detail: "O serviço de IA respondeu num formato que não conseguimos ler.",
+    hint: `Tentar de novo costuma resolver. ${CAN_CONTINUE}`,
+    retryable: true,
+  },
+  ai_unavailable: {
+    detail: "Não conseguimos falar com o serviço de IA.",
+    hint: `Costuma ser passageiro — vale tentar de novo. ${CAN_CONTINUE}`,
+    retryable: true,
+  },
+};
+
+export function describeAnalysis(vacancy: Vacancy): AnalysisOutcome {
+  if (vacancy.parseStatus === "done") return { state: "ok" };
+
+  if (vacancy.parseStatus === "failed") {
+    const known = FAILURE_MESSAGE[vacancy.parseFailureReason ?? ""];
+
+    return {
+      state: "problem",
+      ...(known ?? {
+        detail: "A análise da vaga não pôde ser concluída.",
+        hint: `Tentar de novo costuma resolver. ${CAN_CONTINUE}`,
+        retryable: true,
+      }),
+    };
+  }
+
+  // Ainda pending: quem desistiu de esperar foi o polling, não o backend.
+  return {
+    state: "problem",
+    detail: "A análise está demorando mais do que o esperado.",
+    hint: `Ela pode terminar sozinha — tentar de novo recomeça a contagem. ${CAN_CONTINUE}`,
+    retryable: true,
+  };
+}
+
+/** Manda o backend rodar a análise de novo. Devolve a vaga já zerada em "pending". */
+export async function reparseVacancy(id: string): Promise<Vacancy> {
+  const token = readToken();
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_URL}/vacancies/${id}/reparse`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch {
+    throw new VacancyError(
+      "Não conseguimos falar com o servidor do InterviewTrail.",
+      { hint: "Verifique sua conexão e tente de novo." },
+    );
+  }
+
+  if (response.status === 409) {
+    throw new VacancyError("Esta análise já está rodando.", {
+      hint: "Aguarde ela terminar antes de pedir de novo.",
+      retryable: false,
+    });
+  }
+
+  if (!response.ok) {
+    throw mapErrorResponse(
+      response.status,
+      (await response.json().catch(() => null)) as ErrorBody,
+      "analysis",
+    );
+  }
+
+  let payload: unknown;
+
+  try {
+    payload = await response.json();
+  } catch {
+    throw new VacancyError(
+      "O servidor respondeu num formato que não conseguimos ler.",
+    );
+  }
+
+  return ensureVacancy(payload);
+}
+
+const POLL_INTERVAL_MS = 1200;
+const POLL_TIMEOUT_MS = 45_000;
+
+const wait = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+
+export async function waitForVacancyParsing(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Vacancy> {
+  const deadline = Date.now() + POLL_TIMEOUT_MS;
+  let latest = await getVacancy(id);
+
+  while (!latest.parsingCompleted && Date.now() < deadline) {
+    if (signal?.aborted) return latest;
+
+    await wait(POLL_INTERVAL_MS, signal);
+    if (signal?.aborted) return latest;
+
+    latest = await getVacancy(id);
+  }
+
+  return latest;
 }

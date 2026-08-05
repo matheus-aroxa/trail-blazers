@@ -85,7 +85,6 @@ describe('UsersService', () => {
     expect(encryptionMock.decrypt).not.toHaveBeenCalled();
   });
 
-  // UC-01/A1 — o GitHub pode não devolver email nem avatar
   it('grava null quando o profile não tem email nem avatar', async () => {
     prismaMock.user.upsert.mockResolvedValue({ id: 'uuid-1' });
 
@@ -124,7 +123,6 @@ describe('UsersService', () => {
     expect(prismaMock.user.findUnique).toHaveBeenCalledWith({ where: { githubId: '123' } });
   });
 
-  // CT-02.3
   it('devolve null quando o githubId não existe', async () => {
     prismaMock.user.findUnique.mockResolvedValue(null);
 

@@ -20,7 +20,6 @@ describe('AuthController', () => {
     accessToken: 'gho_token',
   };
 
-  // o controller só usa `redirect`, então basta esse pedaço do Response
   const buildResponse = () => {
     const redirect = jest.fn();
     return { res: { redirect } as unknown as Response, redirect };
@@ -47,13 +46,11 @@ describe('AuthController', () => {
     expect(controller).toBeDefined();
   });
 
-  // o handler é vazio de propósito: quem age é o GithubAuthGuard
   it('githubAuth apenas delega o redirect ao guard', async () => {
     await expect(controller.githubAuth()).resolves.toBeUndefined();
   });
 
   describe('githubAuthCallback', () => {
-    // CT-01.6
     it('redireciona para o front com o token na query', async () => {
       const { res, redirect } = buildResponse();
 
@@ -77,7 +74,6 @@ describe('AuthController', () => {
       );
     });
 
-    // CT-01.7
     it('lança UnauthorizedException quando o guard não anexou o usuário', async () => {
       const { res, redirect } = buildResponse();
 

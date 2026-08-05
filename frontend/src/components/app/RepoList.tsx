@@ -5,19 +5,16 @@ import type { RepoSummary } from "@lib/repositories-api";
 import { RepositoryCard } from "@components/app/RepoCard";
 
 const PAGE_SIZE = 6;
-/** Quantos números de página aparecem por vez, ao redor da página atual. */
 const PAGE_WINDOW = 3;
 
 interface RepositoryListProps {
   repositories: RepoSummary[];
   selectedIds: number[];
-  /** Quantidade máxima de repositórios selecionáveis. */
   limit: number;
   onToggle: (repository: RepoSummary) => void;
   className?: string;
 }
 
-/** Recebe sempre uma lista não vazia: a página trata erro e lista vazia. */
 export function RepositoryList({
   repositories,
   selectedIds,
@@ -28,7 +25,6 @@ export function RepositoryList({
   const [page, setPage] = useState(1);
 
   const pageCount = Math.max(1, Math.ceil(repositories.length / PAGE_SIZE));
-  // A lista pode encolher entre recarregamentos e deixar a página atual vazia.
   const currentPage = Math.min(page, pageCount);
 
   const full = selectedIds.length >= limit;
@@ -67,11 +63,6 @@ export function RepositoryList({
   );
 }
 
-/**
- * Números visíveis: uma janela deslizante de até `PAGE_WINDOW` páginas centrada
- * na atual, para o rodapé não virar uma régua de números em contas com muitos
- * repositórios.
- */
 function pageWindow(page: number, pageCount: number): number[] {
   const size = Math.min(PAGE_WINDOW, pageCount);
   const first = Math.min(

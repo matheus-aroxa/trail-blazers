@@ -1,15 +1,8 @@
-/**
- * Leitura do payload de um JWT — sem verificação de assinatura.
- *
- * Só serve para o frontend saber quem está logado e quando a sessão expira.
- * Quem valida o token de verdade é o backend, a cada requisição protegida.
- */
 export interface JwtPayload {
   sub: string;
   username: string;
   email?: string;
   avatarUrl?: string;
-  /** Expiração em segundos desde a época Unix. */
   exp?: number;
   iat?: number;
 }
@@ -21,8 +14,6 @@ function decodeBase64Url(segment: string): string {
     "=",
   );
 
-  // atob devolve bytes latin-1; o passo por URI-encoding recupera o UTF-8
-  // original (nomes de usuário com acento, por exemplo).
   return decodeURIComponent(
     atob(padded)
       .split("")
@@ -54,12 +45,10 @@ export function decodeJwt(token: string): JwtPayload | null {
     const payload: unknown = JSON.parse(decodeBase64Url(segments[1]));
     return isJwtPayload(payload) ? payload : null;
   } catch {
-    // Token corrompido ou fora do formato esperado: tratamos como inválido.
     return null;
   }
 }
 
-/** Momento da expiração em milissegundos, ou `null` se o token não expirar. */
 export function getExpiresAt(payload: JwtPayload): number | null {
   return typeof payload.exp === "number" ? payload.exp * 1000 : null;
 }

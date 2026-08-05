@@ -47,7 +47,6 @@ describe('EncryptionService', () => {
     expect(() => service.decrypt('')).toThrow('Conteúdo criptografado em formato inválido');
   });
 
-  // CT-03.5 — IV/authTag com tamanho errado não podem chegar no createDecipheriv
   it('rejeita IV com tamanho diferente de 12 bytes', () => {
     const [, authTag, cipherText] = service.encrypt('token').split(':');
     const ivCurto = randomBytes(8).toString('base64');
@@ -66,7 +65,6 @@ describe('EncryptionService', () => {
     );
   });
 
-  // CT-03.9 — trocar a ENCRYPTION_KEY invalida o que já foi cifrado
   it('não decifra conteúdo cifrado com outra chave', async () => {
     const outroModule: TestingModule = await Test.createTestingModule({
       providers: [

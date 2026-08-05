@@ -1,7 +1,3 @@
-/**
- * Mensagens para os erros que o GitHub/backend devolvem no redirect de volta
- * (RF-1.1, critério 3: o candidato precisa entender por que não entrou).
- */
 const messages: Record<string, string> = {
   access_denied:
     "Você cancelou a autorização no GitHub. Para usar o InterviewTrail precisamos ler os repositórios que você escolher.",

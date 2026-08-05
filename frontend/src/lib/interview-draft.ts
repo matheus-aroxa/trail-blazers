@@ -1,47 +1,78 @@
-/**
- * Vaga salva na etapa 1, guardada para as etapas seguintes do fluxo.
- *
- * Fica no sessionStorage (e não em estado de rota) porque a pessoa pode
- * recarregar a página no meio do fluxo, e vive só na aba: cada aba monta uma
- * entrevista independente. Quando existir o endpoint de sessões, o id da
- * sessão substitui isso.
- */
+import type { ParsedVacancyProfile } from "./vacancies-api";
 
-const STORAGE_KEY = "interviewtrail.vacancy";
+const VACANCY_KEY = "interviewtrail.vacancy";
+const REPOSITORY_KEY = "interviewtrail.repository";
 
 export interface VacancyDraft {
   id: string;
   description: string;
+  profile?: ParsedVacancyProfile | null;
 }
 
-export function readVacancyDraft(): VacancyDraft | null {
+export interface RepositoryDraft {
+  owner: string;
+  name: string;
+  language: string | null;
+  fileCount: number;
+  omittedCount: number;
+  topFiles: string[];
+  excerptPath?: string;
+  excerpt?: string;
+}
+
+function read<T>(key: string, isValid: (value: unknown) => boolean): T | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(key);
     if (!raw) return null;
 
-    const parsed = JSON.parse(raw) as Partial<VacancyDraft>;
-
-    return typeof parsed.id === "string" && typeof parsed.description === "string"
-      ? { id: parsed.id, description: parsed.description }
-      : null;
+    const parsed: unknown = JSON.parse(raw);
+    return isValid(parsed) ? (parsed as T) : null;
   } catch {
-    // Storage bloqueado ou conteúdo corrompido: a etapa 1 pede a vaga de novo.
     return null;
   }
 }
 
-export function writeVacancyDraft(draft: VacancyDraft): void {
+function write(key: string, value: unknown): void {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-  } catch {
-    // O fluxo continua nesta navegação; só não sobrevive a um reload.
-  }
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
+function remove(key: string): void {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {}
+}
+
+export function readVacancyDraft(): VacancyDraft | null {
+  return read<VacancyDraft>(VACANCY_KEY, (value) => {
+    const draft = value as Partial<VacancyDraft> | null;
+    return (
+      typeof draft?.id === "string" && typeof draft.description === "string"
+    );
+  });
+}
+
+export function writeVacancyDraft(draft: VacancyDraft): void {
+  write(VACANCY_KEY, draft);
 }
 
 export function clearVacancyDraft(): void {
-  try {
-    sessionStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Nada a fazer — quem chamou já seguiu em frente.
-  }
+  remove(VACANCY_KEY);
+  remove(REPOSITORY_KEY);
+}
+
+export function readRepositoryDraft(): RepositoryDraft | null {
+  return read<RepositoryDraft>(REPOSITORY_KEY, (value) => {
+    const draft = value as Partial<RepositoryDraft> | null;
+    return typeof draft?.owner === "string" && typeof draft.name === "string";
+  });
+}
+
+export function writeRepositoryDraft(draft: RepositoryDraft): void {
+  write(REPOSITORY_KEY, draft);
+}
+
+export function clearRepositoryDraft(): void {
+  remove(REPOSITORY_KEY);
 }

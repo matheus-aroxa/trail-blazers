@@ -11,13 +11,11 @@ export class UsersService {
     private readonly encryption: EncryptionService,
   ) {}
 
-  // cria o usuário no primeiro login e atualiza os dados do perfil nos seguintes
   async upsertFromGithub(githubUser: GithubUser): Promise<User> {
     const data = {
       username: githubUser.username,
       email: githubUser.email ?? null,
       avatarUrl: githubUser.avatarUrl ?? null,
-      // o token nunca é gravado em texto puro; só sai daqui pelo `getGithubToken`
       githubTokenEncrypted: this.encryption.encrypt(githubUser.accessToken),
     };
 
@@ -36,7 +34,6 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { githubId } });
   }
 
-  // devolve o access token do GitHub em texto puro, para chamar a API em nome do usuário
   async getGithubToken(userId: string): Promise<string | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

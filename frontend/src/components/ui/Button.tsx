@@ -40,7 +40,7 @@ export function ButtonLink({
   variant = "primary",
   size = "md",
   className,
-  disabled, // isso aqui ta sujeito a alteração
+  disabled,
   onClick,
   ...props
 }: ButtonLinkProps) {

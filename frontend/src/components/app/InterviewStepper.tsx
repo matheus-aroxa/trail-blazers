@@ -3,19 +3,13 @@ import { CheckIcon } from "@components/ui/icons";
 
 const steps = ["Vaga", "Repositórios", "Entrevista", "Relatório"] as const;
 
-/** Largura da barra preenchida por etapa atual (1 a 4), como no protótipo. */
 const progressByStep = ["0%", "34%", "67%", "100%"];
 
 interface InterviewStepperProps {
-  /** Etapa em andamento, de 1 a 4. */
   current: number;
   className?: string;
 }
 
-/**
- * Trilha de progresso das quatro etapas de uma entrevista. Etapas anteriores
- * aparecem concluídas (teal + check), a atual em âmbar e as futuras apagadas.
- */
 export function InterviewStepper({ current, className }: InterviewStepperProps) {
   return (
     <ol
@@ -71,7 +65,6 @@ export function InterviewStepper({ current, className }: InterviewStepperProps) 
                   : done
                     ? "text-fg-2"
                     : "text-fg-muted",
-                // No mobile só o rótulo da etapa atual cabe na linha.
                 !active && "hidden sm:block",
               )}
             >

@@ -5,7 +5,6 @@ import { IS_PUBLIC_KEY, Public } from './public.decorator';
 describe('Public', () => {
   const reflector = new Reflector();
 
-  // CT-05.6
   it('marca a classe com o metadata isPublic', () => {
     @Public()
     class ControllerPublico {}
@@ -21,7 +20,6 @@ describe('Public', () => {
       protegido() {}
     }
 
-    // o metadata do handler fica no método do prototype, que é o que o guard lê
     const prototype = ControllerMisto.prototype;
 
     /* eslint-disable @typescript-eslint/unbound-method -- só lemos o metadata, não chamamos */
@@ -36,7 +34,6 @@ describe('Public', () => {
     expect(reflector.get(IS_PUBLIC_KEY, ControllerProtegido)).toBeUndefined();
   });
 
-  // garante que a exceção do AuthController é intencional e continua valendo
   it('o AuthController está marcado como público', () => {
     expect(reflector.get(IS_PUBLIC_KEY, AuthController)).toBe(true);
   });

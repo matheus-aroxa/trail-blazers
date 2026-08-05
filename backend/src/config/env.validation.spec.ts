@@ -8,17 +8,16 @@ describe('envValidationSchema', () => {
     GITHUB_CALLBACK_URL: 'http://localhost:3000/auth/github/callback',
     JWT_SECRET: 'a'.repeat(32),
     ENCRYPTION_KEY: 'a'.repeat(64),
+    OPENROUTER_API_KEY: 'sk-or-v1-exemplo',
   };
 
   const validate = (env: Record<string, unknown>) =>
     envValidationSchema.validate(env, { abortEarly: false });
 
-  // CT-06.1
   it('aceita um ambiente completo e válido', () => {
     expect(validate(validEnv).error).toBeUndefined();
   });
 
-  // CT-06.5
   it('aplica os defaults de PORT, NODE_ENV, JWT_EXPIRES_IN e FRONTEND_URL', () => {
     const { value } = validate(validEnv) as { value: Record<string, unknown> };
 
@@ -28,7 +27,6 @@ describe('envValidationSchema', () => {
     expect(value.FRONTEND_URL).toBe('http://localhost:3001');
   });
 
-  // CT-06.2
   describe.each([
     ['DATABASE_URL', 'DATABASE_URL é obrigatória'],
     ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_ID é obrigatória'],
@@ -36,6 +34,7 @@ describe('envValidationSchema', () => {
     ['GITHUB_CALLBACK_URL', 'GITHUB_CALLBACK_URL é obrigatória'],
     ['JWT_SECRET', 'JWT_SECRET é obrigatória'],
     ['ENCRYPTION_KEY', 'ENCRYPTION_KEY é obrigatória'],
+    ['OPENROUTER_API_KEY', 'OPENROUTER_API_KEY é obrigatória'],
   ])('%s ausente', (key, mensagem) => {
     it(`reporta "${mensagem}"`, () => {
       const env = { ...validEnv };
@@ -45,7 +44,6 @@ describe('envValidationSchema', () => {
     });
   });
 
-  // CT-06.3
   describe('ENCRYPTION_KEY', () => {
     it('rejeita chave com menos de 64 caracteres', () => {
       const { error } = validate({ ...validEnv, ENCRYPTION_KEY: 'a'.repeat(63) });
@@ -70,7 +68,6 @@ describe('envValidationSchema', () => {
     });
   });
 
-  // CT-06.4
   it('rejeita JWT_SECRET com menos de 32 caracteres', () => {
     const { error } = validate({ ...validEnv, JWT_SECRET: 'curto' });
 
@@ -93,7 +90,6 @@ describe('envValidationSchema', () => {
     expect(validate({ ...validEnv, NODE_ENV: 'staging' }).error).toBeDefined();
   });
 
-  // CT-06.6 — `abortEarly: false` no ConfigModule permite corrigir tudo de uma vez
   it('reporta todos os erros de uma vez', () => {
     const env = { ...validEnv };
     delete (env as Record<string, unknown>).JWT_SECRET;

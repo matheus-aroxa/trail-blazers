@@ -6,11 +6,6 @@ import { useAuth } from "../auth/useAuth";
 import { Spinner } from "../components/ui/Spinner";
 import { paths } from "../routes/paths";
 
-/**
- * Volta do OAuth: o backend redireciona para cá com `?token=<jwt>` depois de
- * trocar o code do GitHub. A tela só existe para guardar a sessão e sair — o
- * token nunca fica na barra de endereços, por isso todo navigate é `replace`.
- */
 export function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const { signIn } = useAuth();
@@ -21,8 +16,6 @@ export function AuthCallbackPage() {
   const error = searchParams.get("error");
 
   useEffect(() => {
-    // O StrictMode roda o efeito duas vezes em desenvolvimento e o destino
-    // guardado é de uso único — sem a trava, a segunda passada perderia a rota.
     if (handled.current) {
       return;
     }

@@ -16,7 +16,6 @@ describe('JwtAuthGuard', () => {
     getClass: () => DummyController,
   } as unknown as ExecutionContext;
 
-  // `super.canActivate` é o AuthGuard('jwt') do passport; aqui só interessa se foi chamado
   const superCanActivate = jest.spyOn(AuthGuard('jwt').prototype as JwtAuthGuard, 'canActivate');
 
   beforeEach(() => {
@@ -35,7 +34,6 @@ describe('JwtAuthGuard', () => {
     expect(guard).toBeDefined();
   });
 
-  // CT-05.3
   it('libera a rota marcada como pública sem acionar o passport', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
 
@@ -43,7 +41,6 @@ describe('JwtAuthGuard', () => {
     expect(superCanActivate).not.toHaveBeenCalled();
   });
 
-  // CT-05.4 — o padrão é exigir autenticação
   it('delega ao passport quando a rota não é pública', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
 
@@ -66,7 +63,6 @@ describe('JwtAuthGuard', () => {
     expect(guard.canActivate(context)).toBe(false);
   });
 
-  // CT-05.5 — sem a classe na lista, `@Public()` no controller não funcionaria
   it('consulta o metadata no handler e na classe, nessa ordem', () => {
     const spy = jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
 

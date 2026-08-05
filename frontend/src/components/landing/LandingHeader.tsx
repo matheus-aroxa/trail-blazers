@@ -16,9 +16,6 @@ export function LandingHeader() {
       <Container className="flex items-center justify-between gap-3 py-3.5">
         <Logo className="text-lg sm:text-xl" />
 
-        {/* Os wrappers `hidden md:block` existem porque `hidden` aplicado
-            direto nestes elementos perderia para o `inline-flex` que vem da
-            base do botão, na ordem do CSS do Tailwind. */}
         <nav className="flex min-w-0 items-center gap-2 sm:gap-2.5">
           <div className="hidden md:block">
             <a

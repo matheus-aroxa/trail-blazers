@@ -70,7 +70,6 @@
     }
   }
 
-  /* --ring-length permite reusar a animação com raios diferentes. */
   @keyframes ring-draw {
     from {
       stroke-dashoffset: var(--ring-length, 188.5);
@@ -86,7 +85,6 @@
     }
   }
 
-  /* --grow-to é a largura final da barra. */
   @keyframes grow {
     from {
       width: 0;

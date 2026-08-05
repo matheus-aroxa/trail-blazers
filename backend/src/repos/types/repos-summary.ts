@@ -3,6 +3,6 @@ export type RepositorySummary = {
   owner: string;
   name: string;
   description: string | null;
-  language: string | null; // Em vez de um tipo ou outro pode ser um optional?
+  language: string | null;
   visibility: 'public' | 'private';
 };

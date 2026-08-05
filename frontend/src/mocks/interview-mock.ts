@@ -1,12 +1,3 @@
-/**
- * Dados fictícios das telas ainda não implementadas (entrevista e relatório) e
- * do histórico do dashboard. Existem só para dar um fluxo navegável de ponta a
- * ponta enquanto os épicos reais não chegam — nada aqui vem do backend. Toda
- * tela que consome este arquivo exibe o MockBanner.
- *
- * A etapa da vaga saiu daqui: ela grava de verdade via POST /vacancies.
- */
-
 export interface MockSession {
   id: string;
   title: string;
@@ -85,7 +76,6 @@ export interface MockMessage {
   code?: string;
 }
 
-/** Mensagens já na tela quando a entrevista abre (perguntas 1 a 3). */
 export const seedMessages: MockMessage[] = [
   {
     from: "ai",
@@ -124,7 +114,6 @@ export const seedMessages: MockMessage[] = [
   },
 ];
 
-/** Perguntas 4 a 8, liberadas conforme o usuário responde. */
 export const queuedQuestions: MockMessage[] = [
   {
     from: "ai",
@@ -155,14 +144,77 @@ export const queuedQuestions: MockMessage[] = [
 
 export const closingMessage: MockMessage = {
   from: "ai",
-  text: "É isso — entrevista concluída! Analisei suas respostas contra a vaga da Acme e seu relatório está pronto. Spoiler: você foi melhor do que imagina.",
+  text: "É isso — entrevista concluída! Analisei suas respostas contra a vaga e seu relatório está pronto. Spoiler: você foi melhor do que imagina.",
 };
 
+export interface InterviewContext {
+  seniority?: string;
+  technologies: string[];
+  repositoryName?: string;
+  excerptPath?: string;
+  excerpt?: string;
+}
+
+function describeVacancy({ seniority, technologies }: InterviewContext): string {
+  const stack = technologies.slice(0, 3).join(", ");
+
+  if (seniority && stack) return `a vaga ${seniority} de ${stack}`;
+  if (stack) return `a vaga de ${stack}`;
+  if (seniority) return `a vaga ${seniority}`;
+
+  return "a vaga que você cadastrou";
+}
+
+function buildOpeningMessage(context: InterviewContext): MockMessage {
+  const source = context.repositoryName
+    ? `, com base no repositório ${context.repositoryName}`
+    : "";
+
+  return {
+    from: "ai",
+    text: `Olá! Preparei ${TOTAL_QUESTIONS} perguntas para ${describeVacancy(context)}${source}. Sem pressão: não existe resposta perfeita, e no final você recebe um diagnóstico honesto. Vamos?`,
+  };
+}
+
+function buildCodeQuestion(context: InterviewContext): MockMessage {
+  const { excerpt, excerptPath, repositoryName } = context;
+  if (!excerpt || !excerptPath) return CODE_QUESTION_FALLBACK;
+
+  return {
+    from: "ai",
+    kind: "code",
+    codeFile: `${repositoryName ?? "seu repositório"} · ${excerptPath}`,
+    code: excerpt,
+    text: "Encontrei este trecho no seu repositório. Me conta o que ele faz e quais decisões você tomou aqui — e o que mudaria se essa parte precisasse escalar.",
+  };
+}
+
+const CODE_QUESTION_INDEX = 5;
+const CODE_QUESTION_FALLBACK = seedMessages[CODE_QUESTION_INDEX];
+
+export function buildSeedMessages(context: InterviewContext): MockMessage[] {
+  const messages = [...seedMessages];
+
+  messages[0] = buildOpeningMessage(context);
+  messages[CODE_QUESTION_INDEX] = buildCodeQuestion(context);
+
+  return messages;
+}
+
+export function buildSampleAnswers(
+  context: InterviewContext,
+): Record<number, string> {
+  if (!context.excerpt) return sampleAnswers;
+
+  return {
+    ...sampleAnswers,
+    3: "Esse trecho concentra a regra principal do módulo. Na época priorizei entregar funcionando; hoje eu separaria a leitura de dados da regra de negócio e cobriria os casos de borda com teste antes de escalar.",
+  };
+}
+
 export const TOTAL_QUESTIONS = 8;
-/** Índice da pergunta já na tela quando a entrevista abre. */
 export const FIRST_QUESTION_INDEX = 3;
 
-/** Respostas de exemplo, por número da pergunta, para o botão de preencher. */
 export const sampleAnswers: Record<number, string> = {
   3: "Na época priorizei clareza, mas hoje vejo o N+1. Faria uma única consulta de itens com $in nos ids dos pedidos (ou um aggregate) e adicionaria paginação no endpoint.",
   4: "Precisava de SEO nas páginas do blog e as imagens estavam pesadas. Com Next ganhei SSG e next/image — o LCP caiu bastante. O custo foi migrar rotas e variáveis de ambiente.",

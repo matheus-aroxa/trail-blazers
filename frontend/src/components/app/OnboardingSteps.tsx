@@ -1,10 +1,6 @@
 import { cn } from "../../lib/cn";
 import { trailSteps } from "../../content/trail-steps";
 
-/**
- * RF-1.4: orientação curta de três passos para quem acabou de entrar. É a mesma
- * trilha da landing, em versão compacta e sem a linha de progresso.
- */
 export function OnboardingSteps({ className }: { className?: string }) {
   return (
     <ol

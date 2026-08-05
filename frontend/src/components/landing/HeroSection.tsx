@@ -92,7 +92,6 @@ export function HeroSection() {
           </p>
         </div>
 
-        {/* Prévia do produto: dois cards levemente rotacionados e sobrepostos. */}
         <div className="flex w-full max-w-[460px] flex-col justify-self-center py-3">
           <div className="flex -rotate-[1.5deg] flex-col gap-3 rounded-lg border border-border bg-surface p-4.5 shadow-lg">
             <span className="self-start rounded-sm bg-[--alpha(var(--color-q-code)/16%)] px-2.5 py-1 font-mono text-[11px] font-medium tracking-[0.06em] text-ember-text uppercase">

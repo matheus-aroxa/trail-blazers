@@ -15,7 +15,6 @@ describe('GithubStrategy', () => {
 
   const configMock = { getOrThrow: jest.fn((key: string) => env[key]) };
 
-  // só os campos que a strategy lê; o Profile real do passport é bem maior
   const buildProfile = (overrides: Partial<Profile> = {}) =>
     ({
       id: '123',
@@ -25,7 +24,6 @@ describe('GithubStrategy', () => {
       ...overrides,
     }) as Profile;
 
-  // captura o resultado do callback `done` da strategy
   const runValidate = (profile: Profile) => {
     let result: GithubUser | undefined;
     strategy.validate('gho_token', 'refresh', profile, (_err, user) => {
@@ -54,7 +52,6 @@ describe('GithubStrategy', () => {
     expect(configMock.getOrThrow).toHaveBeenCalledWith('GITHUB_CALLBACK_URL');
   });
 
-  // CT-01.1
   it('mapeia o profile do GitHub para GithubUser', async () => {
     await expect(runValidate(buildProfile())).resolves.toEqual({
       githubId: '123',
@@ -77,7 +74,6 @@ describe('GithubStrategy', () => {
     expect(user?.avatarUrl).toBe('https://primeira');
   });
 
-  // CT-01.2 — conta do GitHub com email privado e/ou sem avatar
   it('devolve undefined quando não há email nem foto', () => {
     const user = runValidate(buildProfile({ emails: undefined, photos: undefined }));
 
@@ -93,7 +89,6 @@ describe('GithubStrategy', () => {
     expect(user?.avatarUrl).toBeUndefined();
   });
 
-  // CT-01.3
   it('usa string vazia quando o profile não tem username', () => {
     const user = runValidate(buildProfile({ username: undefined }));
 

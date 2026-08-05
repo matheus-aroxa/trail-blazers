@@ -19,9 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  // o retorno vira `req.user`
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
-    // confere no banco para que tokens de usuários removidos deixem de valer
     const user = await this.usersService.findById(payload.sub);
 
     if (!user) {

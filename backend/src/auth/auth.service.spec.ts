@@ -46,7 +46,6 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
-  // CT-01.4 — regra central: o `sub` é o id da aplicação, não o do GitHub
   it('usa o id interno do usuário como `sub`, e não o githubId', async () => {
     await service.loginWithGithub(githubUser);
 
@@ -58,7 +57,6 @@ describe('AuthService', () => {
     expect(payload.sub).not.toBe(githubUser.githubId);
   });
 
-  // CT-01.5
   it('persiste o usuário antes de assinar e devolve o token', async () => {
     const result = await service.loginWithGithub(githubUser);
 
@@ -77,7 +75,6 @@ describe('AuthService', () => {
     });
   });
 
-  // UC-01/A1 — o banco guarda null, mas o payload do JWT omite o campo
   it('converte email/avatarUrl nulos em undefined no payload', async () => {
     usersMock.upsertFromGithub.mockResolvedValue({
       ...persistedUser,

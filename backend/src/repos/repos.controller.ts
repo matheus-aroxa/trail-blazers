@@ -1,4 +1,4 @@
-import { Controller, Get, Req } from '@nestjs/common';
+import { Controller, Get, Param, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { RepositoriesService } from './repos.service';
@@ -12,5 +12,11 @@ export class RepositoriesController {
   async list(@Req() req: Request): Promise<RepositorySummary[]> {
     const user = req.user as AuthenticatedUser;
     return this.repositoriesService.listForUser(user.id);
+  }
+
+  @Get(':owner/:repo/analyze')
+  async analyze(@Req() req: Request, @Param('owner') owner: string, @Param('repo') repo: string) {
+    const user = req.user as AuthenticatedUser;
+    return this.repositoriesService.analyzeRepositoryContent(user.id, owner, repo);
   }
 }

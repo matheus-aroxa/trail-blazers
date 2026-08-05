@@ -9,8 +9,6 @@ import { IS_PUBLIC_KEY } from './../src/auth/decorators/public.decorator';
 import { JwtAuthGuard } from './../src/auth/guards/jwt-auth.guard';
 import { PrismaService } from './../src/prisma/prisma.service';
 
-// Controllers cujas rotas podem ser acessadas sem autenticação. Adicionar algo
-// aqui é uma decisão consciente de segurança — por isso o teste CT-05.8 existe.
 const CONTROLLERS_PUBLICOS = ['AuthController'];
 
 const usuario = {
@@ -29,7 +27,6 @@ describe('Autenticação e autorização (e2e)', () => {
   let jwtService: JwtService;
   let moduleFixture: TestingModule;
 
-  // banco mockado: estes testes verificam autorização, não persistência
   const prismaMock = {
     user: {
       findUnique: jest.fn(),
@@ -41,7 +38,6 @@ describe('Autenticação e autorização (e2e)', () => {
 
   beforeAll(async () => {
     moduleFixture = await Test.createTestingModule({
-      // DiscoveryModule é necessário só para o teste estrutural (CT-05.8)
       imports: [AppModule, DiscoveryModule],
     })
       .overrideProvider(PrismaService)
@@ -67,12 +63,10 @@ describe('Autenticação e autorização (e2e)', () => {
     jwtService.sign({ sub: usuario.id, username: usuario.username, ...payload });
 
   describe('UC-05 — rotas protegidas por padrão', () => {
-    // CT-05.1
     it('GET / sem token devolve 401', () => {
       return request(app.getHttpServer()).get('/').expect(401);
     });
 
-    // CT-05.2
     it('GET / com token válido devolve 200', () => {
       return request(app.getHttpServer())
         .get('/')
@@ -81,7 +75,6 @@ describe('Autenticação e autorização (e2e)', () => {
         .expect('Hello World!');
     });
 
-    // CT-05.7
     it('rota inexistente devolve 404 mesmo autenticado', () => {
       return request(app.getHttpServer())
         .get('/rota-que-nao-existe')
@@ -97,12 +90,10 @@ describe('Autenticação e autorização (e2e)', () => {
   });
 
   describe('UC-04 — validação do token', () => {
-    // CT-04.3
     it('rejeita requisição sem header Authorization', () => {
       return request(app.getHttpServer()).get('/').expect(401);
     });
 
-    // CT-04.4
     it.each([
       ['header sem o esquema Bearer', 'abc123'],
       ['esquema errado', 'Basic abc123'],
@@ -112,7 +103,6 @@ describe('Autenticação e autorização (e2e)', () => {
       return request(app.getHttpServer()).get('/').set('Authorization', header).expect(401);
     });
 
-    // CT-04.5
     it('rejeita token expirado', () => {
       const expirado = jwtService.sign({ sub: usuario.id }, { expiresIn: '-1s' });
 
@@ -122,7 +112,6 @@ describe('Autenticação e autorização (e2e)', () => {
         .expect(401);
     });
 
-    // CT-04.6
     it('rejeita token assinado com outro segredo', () => {
       const forjado = new JwtService({ secret: 'outro-segredo-com-mais-de-32-caracteres' }).sign({
         sub: usuario.id,
@@ -134,7 +123,6 @@ describe('Autenticação e autorização (e2e)', () => {
         .expect(401);
     });
 
-    // CT-04.8 — usuário removido do banco perde o acesso na hora
     it('rejeita token cujo `sub` não existe mais no banco', () => {
       prismaMock.user.findUnique.mockResolvedValue(null);
 
@@ -154,8 +142,6 @@ describe('Autenticação e autorização (e2e)', () => {
     });
   });
 
-  // CT-05.8 — o teste que sustenta o requisito "vale para endpoints futuros":
-  // um controller novo sem `@Public()` passa; um com `@Public()` esquecido falha.
   describe('CT-05.8 — regressão estrutural', () => {
     it('nenhum controller fora da allowlist está marcado como público', () => {
       const discovery = moduleFixture.get(DiscoveryService);
@@ -187,7 +173,6 @@ describe('Autenticação e autorização (e2e)', () => {
       expect(publicos).toEqual(CONTROLLERS_PUBLICOS);
     });
 
-    // o Nest gera um token interno para cada APP_GUARD, então a busca é pela instância
     it('o JwtAuthGuard está registrado como guard global', () => {
       const registrado = moduleFixture
         .get(DiscoveryService)

@@ -2,7 +2,6 @@ import { ButtonLink } from "../ui/Button";
 import { paths } from "../../routes/paths";
 import { OnboardingSteps } from "./OnboardingSteps";
 
-/** Trilha ainda não percorrida: a mesma marca, tracejada e esmaecida. */
 function EmptyTrailMark({ size = 64 }: { size?: number }) {
   return (
     <svg

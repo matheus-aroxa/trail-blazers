@@ -27,6 +27,12 @@ export const envValidationSchema = Joi.object({
     'string.uri': 'GITHUB_CALLBACK_URL deve ser uma URL válida',
   }),
 
+  OPENROUTER_API_KEY: Joi.string().required().messages({
+    'any.required': 'OPENROUTER_API_KEY é obrigatória. Gere em openrouter.ai/keys',
+  }),
+  AI_MODEL: Joi.string().default('openai/gpt-oss-20b:free'),
+  APP_TITLE: Joi.string().default('Trail Blazers'),
+
   // JWT
   JWT_SECRET: Joi.string().min(32).required().messages({
     'any.required': 'JWT_SECRET é obrigatória. Defina-a no arquivo .env',

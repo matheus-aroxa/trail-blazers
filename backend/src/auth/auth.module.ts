@@ -16,7 +16,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     AuthService,
     GithubStrategy,
     JwtStrategy,
-    // protege toda a aplicação; rotas abertas precisam do decorator `@Public()`
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
   exports: [AuthService],
@@ -29,7 +28,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
-          // o tipo do `expiresIn` é um template literal do `ms` (ex: '1d', '60s')
           expiresIn: config.get<string>('JWT_EXPIRES_IN', '1d') as JwtSignOptions['expiresIn'],
         },
       }),

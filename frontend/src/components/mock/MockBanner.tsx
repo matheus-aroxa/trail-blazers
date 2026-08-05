@@ -1,10 +1,6 @@
 import { AppHeader } from "@components/app/AppHeader";
 import { cn } from "@lib/cn";
 
-/**
- * Faixa que marca telas cujo conteúdo é fictício. Em nenhum momento a pessoa
- * deve confundir estas telas com o produto ligado ao backend.
- */
 export function MockBanner({ screen }: { screen: string }) {
   return (
     <div
@@ -12,7 +8,6 @@ export function MockBanner({ screen }: { screen: string }) {
       className={cn(
         "flex flex-wrap items-center justify-center gap-x-2.5 gap-y-0.5 px-3 py-1.5 text-center sm:px-4 sm:py-2",
         "border-b border-[--alpha(var(--color-ember-400)/45%)]",
-        // Listras diagonais reforçam a leitura de "área em obras".
         "bg-[repeating-linear-gradient(135deg,--alpha(var(--color-ember-400)/16%)_0_10px,--alpha(var(--color-ember-400)/8%)_10px_20px)]",
       )}
     >
@@ -27,10 +22,6 @@ export function MockBanner({ screen }: { screen: string }) {
   );
 }
 
-/**
- * Faixa de mock + cabeçalho da aplicação, presos juntos no topo. Sem o
- * agrupamento os dois disputariam `top: 0` e se sobreporiam.
- */
 export function MockScreenHeader({
   screen,
   label,
@@ -46,7 +37,6 @@ export function MockScreenHeader({
   );
 }
 
-/** Selo inline, para marcar um bloco mockado dentro de uma tela real. */
 export function MockTag({ className }: { className?: string }) {
   return (
     <span

@@ -4,13 +4,56 @@ import { InterviewStepper } from "@components/app/InterviewStepper";
 import { MockScreenHeader } from "@components/mock/MockBanner";
 import { ButtonLink } from "@components/ui/Button";
 import { CheckIcon } from "@components/ui/icons";
+import {
+  readRepositoryDraft,
+  readVacancyDraft,
+  type RepositoryDraft,
+  type VacancyDraft,
+} from "@lib/interview-draft";
 import { mockReport } from "@mocks/interview-mock";
 import { paths } from "@routes/paths";
 
 const RING_RADIUS = 54;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 
+const seniorityLabels: Record<string, string> = {
+  junior: "Júnior",
+  mid: "Pleno",
+  senior: "Sênior",
+  lead: "Liderança técnica",
+};
+
+function buildEyebrow(
+  vacancy: VacancyDraft | null,
+  repository: RepositoryDraft | null,
+): string {
+  const profile = vacancy?.profile ?? null;
+  const parts = ["Relatório"];
+
+  const seniority = profile ? seniorityLabels[profile.seniorityLevel] : undefined;
+  const stack = profile?.technologies.slice(0, 2).join(", ");
+
+  if (seniority && stack) parts.push(`${seniority} — ${stack}`);
+  else if (stack) parts.push(stack);
+  else if (seniority) parts.push(seniority);
+
+  if (repository) parts.push(`${repository.owner}/${repository.name}`);
+
+  parts.push(
+    new Date().toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }),
+  );
+
+  return parts.join(" · ");
+}
+
 export function ReportPage() {
+  const vacancy = readVacancyDraft();
+  const repository = readRepositoryDraft();
+
   return (
     <div className="min-h-screen animate-rise">
       <MockScreenHeader screen="relatório da entrevista" label="Relatório" />
@@ -18,10 +61,10 @@ export function ReportPage() {
       <main className="mx-auto w-full max-w-[920px] px-4 pt-8 pb-14 sm:px-6 sm:pt-10 sm:pb-18">
         <InterviewStepper current={4} className="mb-10 sm:mb-12" />
 
-        <ScoreHeader />
+        <ScoreHeader eyebrow={buildEyebrow(vacancy, repository)} />
 
         <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-4">
-          <AdherenceCard />
+          <AdherenceCard vacancy={vacancy} repository={repository} />
           <DimensionsCard />
         </div>
 
@@ -66,7 +109,7 @@ export function ReportPage() {
   );
 }
 
-function ScoreHeader() {
+function ScoreHeader({ eyebrow }: { eyebrow: string }) {
   const offset = RING_LENGTH * (1 - mockReport.score / 100);
 
   return (
@@ -118,7 +161,7 @@ function ScoreHeader() {
 
       <div className="w-full sm:min-w-[260px] sm:flex-1">
         <span className="font-mono text-[11.5px] font-medium tracking-[0.1em] text-trail-text uppercase">
-          {mockReport.eyebrow}
+          {eyebrow}
         </span>
         <h1 className="my-2.5 font-display text-[clamp(1.5rem,3vw,1.9rem)] font-semibold tracking-[-0.02em] text-pretty">
           {mockReport.headline}
@@ -152,7 +195,53 @@ function Card({
   );
 }
 
-function AdherenceCard() {
+function buildAdherenceNotes(
+  vacancy: VacancyDraft | null,
+  repository: RepositoryDraft | null,
+): typeof mockReport.adherenceNotes {
+  const technologies = vacancy?.profile?.technologies ?? [];
+  if (technologies.length === 0) return mockReport.adherenceNotes;
+
+  const language = repository?.language ?? null;
+  const covered = language
+    ? technologies.filter((technology) =>
+        technology.toLowerCase().includes(language.toLowerCase()),
+      )
+    : [];
+  const missing = technologies.filter(
+    (technology) => !covered.includes(technology),
+  );
+
+  const notes: typeof mockReport.adherenceNotes = [];
+
+  if (repository && language) {
+    notes.push({
+      tone: "good",
+      title: "Aproxima:",
+      text: `${language} é a linguagem principal de ${repository.name}, e a vaga pede ${covered.length > 0 ? covered.join(", ") : "essa base"}.`,
+    });
+  }
+
+  if (missing.length > 0) {
+    notes.push({
+      tone: "gap",
+      title: "Falta:",
+      text: `${missing.slice(0, 4).join(", ")} — a vaga cita e o repositório analisado não evidencia.`,
+    });
+  }
+
+  return notes.length > 0 ? notes : mockReport.adherenceNotes;
+}
+
+function AdherenceCard({
+  vacancy,
+  repository,
+}: {
+  vacancy: VacancyDraft | null;
+  repository: RepositoryDraft | null;
+}) {
+  const notes = buildAdherenceNotes(vacancy, repository);
+
   return (
     <section className="rounded-xl border border-border bg-surface p-5 sm:p-6.5">
       <div className="mb-3.5 flex items-baseline justify-between gap-3">
@@ -177,7 +266,7 @@ function AdherenceCard() {
       </div>
 
       <div className="flex flex-col gap-3">
-        {mockReport.adherenceNotes.map((note) => (
+        {notes.map((note) => (
           <Note key={note.title} {...note} />
         ))}
       </div>

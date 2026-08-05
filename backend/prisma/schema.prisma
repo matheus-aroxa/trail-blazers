@@ -6,6 +6,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ParseStatus {
+  pending
+  done
+  failed
+}
+
 enum SessionStatus {
   preparing
   in_progress
@@ -44,6 +50,9 @@ model Vacancy {
   parsedSeniority String?  @map("parsed_seniority")
   parsedSkills    Json?    @map("parsed_skills")
   parseConfidence Float?   @map("parse_confidence")
+  parsedOutOfScope Boolean? @map("parsed_out_of_scope")
+  parseStatus        ParseStatus @default(pending) @map("parse_status")
+  parseFailureReason String?     @map("parse_failure_reason")
   createdAt       DateTime @default(now()) @map("created_at")
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -1,18 +1,35 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
-import { Vacancy } from '@prisma/client';
-import type { Request } from 'express';
-import { AuthenticatedUser } from '../auth/types/authenticated-user';
-import { CreateVacancyDto } from './dto/create-vacancy.dto';
+import { Controller, Post, Get, Param, Body, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { VacanciesService } from './vacancies.service';
+import { type CreateVacancyDto, CreateVacancySchema } from './schemas/vacancy.schema';
+import { ZodValidationPipe } from './schemas/zod-validation.pipe';
+import { AuthenticatedUser } from '../auth/types/authenticated-user';
 
 @Controller('vacancies')
 export class VacanciesController {
-  constructor(private readonly vacanciesService: VacanciesService) {}
+  constructor(private readonly service: VacanciesService) {}
 
   @Post()
-  async create(@Req() req: Request, @Body() createVacancyDto: CreateVacancyDto): Promise<Vacancy> {
-    // a vaga pertence ao usuário do JWT; o guard global garante que ele existe
-    const user = req.user as AuthenticatedUser;
-    return this.vacanciesService.create(user.id, createVacancyDto);
+  @HttpCode(HttpStatus.CREATED)
+  async create(
+    @Request() req: { user: AuthenticatedUser },
+    @Body(new ZodValidationPipe(CreateVacancySchema)) dto: CreateVacancyDto,
+  ) {
+    return this.service.create(req.user.id, dto);
+  }
+
+  @Get(':id')
+  async findOne(@Request() req: { user: AuthenticatedUser }, @Param('id') id: string) {
+    return this.service.findOne(id, req.user.id);
+  }
+
+  @Post(':id/reparse')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async reparse(@Request() req: { user: AuthenticatedUser }, @Param('id') id: string) {
+    return this.service.reparse(id, req.user.id);
+  }
+
+  @Get()
+  async findAll(@Request() req: { user: AuthenticatedUser }) {
+    return this.service.findAllByUser(req.user.id);
   }
 }

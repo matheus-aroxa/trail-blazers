@@ -10,15 +10,9 @@ export interface RepoSummary {
   visibility: "public" | "private";
 }
 
-/**
- * Falha ao listar repositórios, já traduzida para algo que a tela possa
- * mostrar: `detail` explica o que aconteceu e `hint` sugere o que fazer.
- * Sem isso a UI acabava exibindo o texto cru da resposta ("Unauthorized").
- */
 export class RepositoriesError extends Error {
   readonly detail: string;
   readonly hint?: string;
-  /** Tentar de novo só ajuda em falhas transitórias. */
   readonly retryable: boolean;
 
   constructor(detail: string, options: { hint?: string; retryable?: boolean } = {}) {
@@ -83,7 +77,6 @@ export async function fetchRepos(): Promise<RepoSummary[]> {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
   } catch {
-    // fetch só rejeita quando a requisição nem chegou a ser respondida.
     throw new RepositoriesError(
       'Não conseguimos falar com o servidor do InterviewTrail.',
       { hint: 'Verifique sua conexão e tente de novo.' },
@@ -100,6 +93,58 @@ export async function fetchRepos(): Promise<RepoSummary[]> {
 
   try {
     return (await response.json()) as RepoSummary[];
+  } catch {
+    throw new RepositoriesError(
+      'O servidor respondeu num formato que não conseguimos ler.',
+    );
+  }
+
+}
+
+export interface AnalyzedFile {
+  path: string;
+  content: string;
+}
+
+export interface RepositoryAnalysis {
+  relevantFiles: AnalyzedFile[];
+  omittedFiles: string[];
+  totalTokensEstimative: number;
+}
+
+export async function analyzeRepo(
+  owner: string,
+  name: string,
+): Promise<RepositoryAnalysis> {
+  const token = readToken();
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_URL}/repositories/${owner}/${name}/analyze`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch {
+    throw new RepositoriesError(
+      'Não conseguimos falar com o servidor do InterviewTrail.',
+      { hint: 'Verifique sua conexão e tente de novo.' },
+    );
+  }
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { message?: string; code?: string } | null;
+
+    if (body?.code === 'repo_vazio') {
+      throw new RepositoriesError(body.message || 'Repositório vazio.', {
+        hint: 'Escolha outro repositório para a entrevista.',
+        retryable: false
+      });
+    }
+    throw mapErrorResponse(response.status, body);
+  }
+
+  try {
+    return (await response.json()) as RepositoryAnalysis;
   } catch {
     throw new RepositoriesError(
       'O servidor respondeu num formato que não conseguimos ler.',
