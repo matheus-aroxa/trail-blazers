@@ -6,6 +6,6 @@ import { AiProviderPort, VacancyParserService } from '../vacancies/vacancy-parse
 @Module({
   imports: [ConfigModule],
   providers: [{ provide: AiProviderPort, useClass: OpenRouterProvider }, VacancyParserService],
-  exports: [VacancyParserService],
+  exports: [VacancyParserService, AiProviderPort],
 })
 export class AiModule {}

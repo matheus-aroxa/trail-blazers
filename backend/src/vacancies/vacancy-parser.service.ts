@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AiResponseSchema, ParsedVacancyProfile } from './schemas/vacancy.schema';
 
 export abstract class AiProviderPort {
-  abstract complete(systemPrompt: string, userMessage: string): Promise<string>;
+  abstract complete(systemPrompt: string, userMessage: string, timeoutMs?: number): Promise<string>;
 }
 
 /** O que deu errado na conversa com o provedor de IA. */

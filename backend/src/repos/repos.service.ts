@@ -3,12 +3,17 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import type { Vacancy } from '@prisma/client';
 import { UsersService } from '@users/users.service';
 import { RepositorySummary } from './types/repos-summary';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
+import { PrismaService } from '../prisma/prisma.service';
+import { FileSelectionError, RepoFileSelectorService } from './repo-file-selector.service';
+import { ParsedVacancyProfile } from '../vacancies/schemas/vacancy.schema';
 
 const MAX_CONTEXT_CHARS = 80000;
 const IGNORED_DIRS = new Set([
@@ -71,6 +76,8 @@ const GITHUB_REPOS_URL =
 export class RepositoriesService {
   constructor(
     private readonly usersService: UsersService,
+    private readonly prisma: PrismaService,
+    private readonly fileSelector: RepoFileSelectorService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -141,14 +148,32 @@ export class RepositoriesService {
     userId: string,
     owner: string,
     repo: string,
+    vacancyId: string,
   ): Promise<ProcessedRepository> {
-    const cacheKey = `repo_analysis_${userId}_${owner}_${repo}`;
+    if (!vacancyId) {
+      throw new HttpException(
+        {
+          code: 'vacancy_id_obrigatorio',
+          message: 'Selecione uma vaga antes de analisar o repositório.',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const cacheKey = `repo_analysis_${userId}_${owner}_${repo}_${vacancyId}`;
 
     const cachedData = await this.cacheManager.get<ProcessedRepository>(cacheKey);
     if (cachedData) {
       console.log(`\n[CACHE] Servindo análise do repositório ${owner}/${repo}.`);
       return cachedData;
     }
+
+    const vacancy = await this.prisma.vacancy.findFirst({
+      where: { id: vacancyId, userId },
+    });
+    if (!vacancy) throw new NotFoundException('Vaga não encontrada.');
+
+    const profile = this.requireVacancyProfile(vacancy);
 
     const token = await this.usersService.getGithubToken(userId);
     if (!token) throw new UnauthorizedException('Token do GitHub não encontrado.');
@@ -183,7 +208,20 @@ export class RepositoriesService {
       );
     }
 
-    candidatePaths = this.sortFilesByRelevance(candidatePaths);
+    try {
+      candidatePaths = await this.fileSelector.selectRelevantFiles(candidatePaths, {
+        rawDescription: vacancy.rawDescription,
+        profile,
+      });
+    } catch (err) {
+      if (!(err instanceof FileSelectionError)) throw err;
+
+      const retryable = err.reason !== 'invalid_api_key' && err.reason !== 'payment_required';
+      throw new HttpException(
+        { code: 'ia_indisponivel', message: err.message, retryable },
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
 
     const relevantFiles: file[] = [];
     const omittedFiles: string[] = [];
@@ -226,6 +264,38 @@ export class RepositoriesService {
     return result;
   }
 
+  private requireVacancyProfile(vacancy: Vacancy): ParsedVacancyProfile {
+    if (vacancy.parseStatus === 'pending') {
+      throw new HttpException(
+        {
+          code: 'vaga_ainda_analisando',
+          message: 'A análise da vaga ainda não terminou. Aguarde para escolher o repositório.',
+        },
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    if (vacancy.parseStatus === 'failed' || vacancy.parsedOutOfScope) {
+      throw new HttpException(
+        {
+          code: 'vaga_sem_perfil',
+          message:
+            'Não foi possível extrair um perfil técnico desta vaga. Tente reanalisar a vaga ou edite a descrição.',
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    return {
+      technologies: (vacancy.parsedStack ?? []) as string[],
+      seniorityLevel: (vacancy.parsedSeniority ??
+        'unknown') as ParsedVacancyProfile['seniorityLevel'],
+      keyCompetencies: (vacancy.parsedSkills ?? []) as string[],
+      confidence: vacancy.parseConfidence === 1.0 ? 'high' : 'low',
+      outOfScope: vacancy.parsedOutOfScope ?? false,
+    };
+  }
+
   private isFileRelevant(path: string): boolean {
     const parts = path.split('/');
     const fileName = parts[parts.length - 1];
@@ -237,24 +307,6 @@ export class RepositoriesService {
     if (IGNORED_FILES.has(fileName) || IGNORED_EXTENSIONS.has(extension)) return false;
 
     return true;
-  }
-
-  private sortFilesByRelevance(paths: string[]): string[] {
-    const scorePath = (path: string) => {
-      let score = 0;
-      const lowerPath = path.toLowerCase();
-      if (lowerPath.includes('package.json') || lowerPath.includes('docker-compose')) score += 100;
-      if (
-        lowerPath.startsWith('src/') ||
-        lowerPath.startsWith('app/') ||
-        lowerPath.startsWith('lib/')
-      )
-        score += 50;
-      if (lowerPath.endsWith('readme.md')) score += 40;
-      return score;
-    };
-
-    return paths.sort((a, b) => scorePath(b) - scorePath(a));
   }
 
   private async fetchFileRawContent(

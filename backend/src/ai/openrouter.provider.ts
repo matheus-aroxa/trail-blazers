@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AiError, AiProviderPort } from '../vacancies/vacancy-parser.service';
 
-const REQUEST_TIMEOUT_MS = 30_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
 /**
  * O fetch do Node embrulha o estouro do AbortSignal.timeout de formas
@@ -28,13 +28,17 @@ export class OpenRouterProvider implements AiProviderPort {
     this.siteTitle = this.config.get<string>('APP_TITLE', 'Trail Blazers');
   }
 
-  async complete(systemPrompt: string, userMessage: string): Promise<string> {
+  async complete(
+    systemPrompt: string,
+    userMessage: string,
+    timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS,
+  ): Promise<string> {
     let response: Response;
 
     try {
       response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
           'HTTP-Referer': this.siteUrl,
@@ -53,7 +57,7 @@ export class OpenRouterProvider implements AiProviderPort {
       });
     } catch (err) {
       if (isTimeout(err)) {
-        throw new AiError('timeout', `A OpenRouter não respondeu em ${REQUEST_TIMEOUT_MS}ms.`, err);
+        throw new AiError('timeout', `A OpenRouter não respondeu em ${timeoutMs}ms.`, err);
       }
       throw new AiError('unavailable', 'Não foi possível alcançar a OpenRouter.', err);
     }

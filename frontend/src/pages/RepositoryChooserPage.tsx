@@ -12,16 +12,11 @@ import {
   clearRepositoryDraft,
   readVacancyDraft,
   writeRepositoryDraft,
+  writeSessionDraft,
 } from "@lib/interview-draft";
-import {
-  fetchRepos,
-  RepositoriesError,
-  analyzeRepo,
-  type RepoSummary,
-} from "@lib/repositories-api";
+import { fetchRepos, RepositoriesError, type RepoSummary } from "@lib/repositories-api";
+import { createSession, InterviewError } from "@lib/interview-api";
 import { paths } from "@routes/paths";
-
-const EXCERPT_CHARS = 700;
 
 type Status = "loading" | "error" | "success" | "analyzing";
 
@@ -51,7 +46,7 @@ function InfoIcon() {
 export function RepositoryChooserPage() {
   const [vacancy] = useState(readVacancyDraft);
   const [status, setStatus] = useState<Status>("loading");
-  const [error, setError] = useState<RepositoriesError | null>(null);
+  const [error, setError] = useState<RepositoriesError | InterviewError | null>(null);
   const [repositories, setRepositories] = useState<RepoSummary[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [attempt, setAttempt] = useState(0);
@@ -126,26 +121,28 @@ export function RepositoryChooserPage() {
     setError(null);
 
     try {
-      const analysis = await analyzeRepo(selectedRepo.owner, selectedRepo.name);
-      const mainFile = analysis.relevantFiles[0];
+      const session = await createSession({
+        vacancyId: vacancy.id,
+        owner: selectedRepo.owner,
+        repo: selectedRepo.name,
+      });
 
       writeRepositoryDraft({
         owner: selectedRepo.owner,
         name: selectedRepo.name,
         language: selectedRepo.language,
-        fileCount: analysis.relevantFiles.length,
-        omittedCount: analysis.omittedFiles.length,
-        topFiles: analysis.relevantFiles.slice(0, 5).map((file) => file.path),
-        excerptPath: mainFile?.path,
-        excerpt: mainFile?.content.slice(0, EXCERPT_CHARS),
+        fileCount: session.repoAnalysis?.fileCount ?? 0,
+        omittedCount: session.repoAnalysis?.omittedCount ?? 0,
+        topFiles: session.repoAnalysis?.topFiles ?? [],
       });
+      writeSessionDraft({ id: session.id });
 
       navigate(paths.interview);
     } catch (cause: unknown) {
       setError(
-        cause instanceof RepositoriesError
+        cause instanceof InterviewError
           ? cause
-          : new RepositoriesError("Falha na análise do repositório."),
+          : new InterviewError("Falha na análise do repositório."),
       );
       setStatus("error");
     }
@@ -222,8 +219,10 @@ export function RepositoryChooserPage() {
 
         {status === "analyzing" && (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <Spinner label="Analisando código-fonte..." />
-            <p className="text-[14.5px] text-fg-2 font-mono">Lendo arquivos e preparando a IA...</p>
+            <Spinner label="Selecionando arquivos e preparando perguntas..." />
+            <p className="text-[14.5px] text-fg-2 font-mono">
+              Pode levar até um minuto — a IA está lendo o repositório e montando a entrevista.
+            </p>
           </div>
         )}
 

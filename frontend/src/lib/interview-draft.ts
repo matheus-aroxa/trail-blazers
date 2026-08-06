@@ -2,6 +2,7 @@ import type { ParsedVacancyProfile } from "./vacancies-api";
 
 const VACANCY_KEY = "interviewtrail.vacancy";
 const REPOSITORY_KEY = "interviewtrail.repository";
+const SESSION_KEY = "interviewtrail.session";
 
 export interface VacancyDraft {
   id: string;
@@ -16,8 +17,6 @@ export interface RepositoryDraft {
   fileCount: number;
   omittedCount: number;
   topFiles: string[];
-  excerptPath?: string;
-  excerpt?: string;
 }
 
 function read<T>(key: string, isValid: (value: unknown) => boolean): T | null {
@@ -60,6 +59,7 @@ export function writeVacancyDraft(draft: VacancyDraft): void {
 export function clearVacancyDraft(): void {
   remove(VACANCY_KEY);
   remove(REPOSITORY_KEY);
+  remove(SESSION_KEY);
 }
 
 export function readRepositoryDraft(): RepositoryDraft | null {
@@ -75,4 +75,23 @@ export function writeRepositoryDraft(draft: RepositoryDraft): void {
 
 export function clearRepositoryDraft(): void {
   remove(REPOSITORY_KEY);
+}
+
+export interface SessionDraft {
+  id: string;
+}
+
+export function readSessionDraft(): SessionDraft | null {
+  return read<SessionDraft>(SESSION_KEY, (value) => {
+    const draft = value as Partial<SessionDraft> | null;
+    return typeof draft?.id === "string";
+  });
+}
+
+export function writeSessionDraft(draft: SessionDraft): void {
+  write(SESSION_KEY, draft);
+}
+
+export function clearSessionDraft(): void {
+  remove(SESSION_KEY);
 }

@@ -1,16 +1,24 @@
 import type { ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Navigate } from "react-router-dom";
 
 import { InterviewStepper } from "@components/app/InterviewStepper";
-import { MockScreenHeader } from "@components/mock/MockBanner";
 import { ButtonLink } from "@components/ui/Button";
 import { CheckIcon } from "@components/ui/icons";
+import { Spinner } from "@components/ui/Spinner";
 import {
   readRepositoryDraft,
+  readSessionDraft,
   readVacancyDraft,
   type RepositoryDraft,
   type VacancyDraft,
 } from "@lib/interview-draft";
-import { mockReport } from "@mocks/interview-mock";
+import {
+  generateReport,
+  getReport,
+  InterviewError,
+  type InterviewReport,
+} from "@lib/interview-api";
 import { paths } from "@routes/paths";
 
 const RING_RADIUS = 54;
@@ -23,10 +31,7 @@ const seniorityLabels: Record<string, string> = {
   lead: "Liderança técnica",
 };
 
-function buildEyebrow(
-  vacancy: VacancyDraft | null,
-  repository: RepositoryDraft | null,
-): string {
+function buildEyebrow(vacancy: VacancyDraft | null, repository: RepositoryDraft | null): string {
   const profile = vacancy?.profile ?? null;
   const parts = ["Relatório"];
 
@@ -50,86 +55,139 @@ function buildEyebrow(
   return parts.join(" · ");
 }
 
+function buildHeadline(score: number): string {
+  if (score >= 80) return "Você mandou muito bem.";
+  if (score >= 60) return "Você está mais perto do que pensa.";
+  if (score >= 40) return "Dá pra melhorar, e o caminho está claro.";
+  return "Ainda há bastante chão pela frente — e está tudo bem.";
+}
+
+function buildSummary(score: number): string {
+  if (score >= 80) {
+    return "Desempenho forte nesta simulação. Use o relatório abaixo para afinar os últimos detalhes.";
+  }
+  if (score >= 60) {
+    return "Desempenho acima da média. Nada aqui é veredito — é um mapa do que praticar antes da entrevista de verdade.";
+  }
+  return "Ainda há lacunas importantes. Veja abaixo o que fortalecer antes da próxima simulação.";
+}
+
 export function ReportPage() {
-  const vacancy = readVacancyDraft();
-  const repository = readRepositoryDraft();
+  const [vacancy] = useState(readVacancyDraft);
+  const [repository] = useState(readRepositoryDraft);
+  const [sessionDraft] = useState(readSessionDraft);
+
+  const [report, setReport] = useState<InterviewReport | null>(null);
+  const [error, setError] = useState<InterviewError | null>(null);
+  const requestedRef = useRef(false);
+
+  useEffect(() => {
+    if (!sessionDraft || requestedRef.current) return;
+    requestedRef.current = true;
+
+    (async () => {
+      try {
+        const existing = await getReport(sessionDraft.id);
+        const result = existing ?? (await generateReport(sessionDraft.id));
+        setReport(result);
+      } catch (cause: unknown) {
+        setError(
+          cause instanceof InterviewError
+            ? cause
+            : new InterviewError("Não conseguimos gerar o relatório."),
+        );
+      }
+    })();
+  }, [sessionDraft]);
+
+  if (!vacancy || !sessionDraft) {
+    return <Navigate to={paths.newInterview} replace />;
+  }
+
+  if (error?.code === "respostas_pendentes") {
+    return <Navigate to={paths.interview} replace />;
+  }
 
   return (
     <div className="min-h-screen animate-rise">
-      <MockScreenHeader screen="relatório da entrevista" label="Relatório" />
-
       <main className="mx-auto w-full max-w-[920px] px-4 pt-8 pb-14 sm:px-6 sm:pt-10 sm:pb-18">
         <InterviewStepper current={4} className="mb-10 sm:mb-12" />
 
-        <ScoreHeader eyebrow={buildEyebrow(vacancy, repository)} />
+        {error && (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[--alpha(var(--color-danger)/45%)] bg-[--alpha(var(--color-danger)/8%)] px-5 py-12 text-center">
+            <p className="text-[15px] text-fg-2">{error.detail}</p>
+            {error.hint && <p className="font-mono text-[12.5px] text-fg-muted">{error.hint}</p>}
+            <ButtonLink to={paths.dashboard} variant="secondary">
+              Voltar ao dashboard
+            </ButtonLink>
+          </div>
+        )}
 
-        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-4">
-          <AdherenceCard vacancy={vacancy} repository={repository} />
-          <DimensionsCard />
-        </div>
+        {!error && !report && (
+          <div className="flex flex-col items-center justify-center gap-3 py-20">
+            <Spinner label="Gerando seu relatório..." />
+            <p className="text-[14.5px] text-fg-2 font-mono">
+              A IA está avaliando suas respostas...
+            </p>
+          </div>
+        )}
 
-        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-4">
-          <Card title="Pontos fortes" titleClassName="text-trail-text">
-            {mockReport.strengths.map((item) => (
-              <Note key={item.title} tone="good" {...item} />
-            ))}
-          </Card>
+        {!error && report && (
+          <>
+            <ScoreHeader eyebrow={buildEyebrow(vacancy, repository)} report={report} />
 
-          <Card title="Lacunas identificadas" titleClassName="text-ember-text">
-            {mockReport.gaps.map((item) => (
-              <Note key={item.title} tone="gap" {...item} />
-            ))}
-          </Card>
+            <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-4">
+              <AdherenceCard report={report} />
+              <DimensionsCard report={report} />
+            </div>
 
-          <Card title="Recomendações acionáveis">
-            {mockReport.recommendations.map((item) => (
-              <Note key={item.title} tone="action" {...item} />
-            ))}
-          </Card>
-        </div>
+            <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-4">
+              <Card title="Pontos fortes" titleClassName="text-trail-text">
+                {report.strengths.map((item) => (
+                  <Note key={item.title} tone="good" {...item} />
+                ))}
+              </Card>
 
-        <div className="mt-10 flex flex-wrap justify-center gap-3">
-          <ButtonLink to={paths.newInterview} className="max-sm:w-full">
-            Nova entrevista
-          </ButtonLink>
-          <ButtonLink
-            to={paths.dashboard}
-            variant="secondary"
-            className="max-sm:w-full"
-          >
-            Voltar ao dashboard
-          </ButtonLink>
-        </div>
+              <Card title="Lacunas identificadas" titleClassName="text-ember-text">
+                {report.gaps.map((item) => (
+                  <Note key={item.title} tone="gap" {...item} />
+                ))}
+              </Card>
 
-        <p className="mt-7 text-center font-mono text-xs text-fg-muted">
-          Sem pressão. Só clareza.
-        </p>
+              <Card title="Recomendações acionáveis">
+                {report.recommendations.map((item) => (
+                  <Note key={item.title} tone="action" {...item} />
+                ))}
+              </Card>
+            </div>
+
+            <div className="mt-10 flex flex-wrap justify-center gap-3">
+              <ButtonLink to={paths.newInterview} className="max-sm:w-full">
+                Nova entrevista
+              </ButtonLink>
+              <ButtonLink to={paths.dashboard} variant="secondary" className="max-sm:w-full">
+                Voltar ao dashboard
+              </ButtonLink>
+            </div>
+
+            <p className="mt-7 text-center font-mono text-xs text-fg-muted">
+              Sem pressão. Só clareza.
+            </p>
+          </>
+        )}
       </main>
     </div>
   );
 }
 
-function ScoreHeader({ eyebrow }: { eyebrow: string }) {
-  const offset = RING_LENGTH * (1 - mockReport.score / 100);
+function ScoreHeader({ eyebrow, report }: { eyebrow: string; report: InterviewReport }) {
+  const offset = RING_LENGTH * (1 - report.overallScore / 100);
 
   return (
     <div className="flex flex-col items-center gap-6 rounded-xl border border-border bg-surface p-5 text-center shadow-md sm:flex-row sm:flex-wrap sm:gap-8 sm:p-8 sm:text-left">
       <div className="relative size-[130px] flex-none sm:mx-auto sm:size-[150px]">
-        <svg
-          width="100%"
-          height="100%"
-          viewBox="0 0 120 120"
-          className="-rotate-90"
-          aria-hidden="true"
-        >
-          <circle
-            cx="60"
-            cy="60"
-            r={RING_RADIUS}
-            fill="none"
-            stroke="var(--color-surface-2)"
-            strokeWidth="9"
-          />
+        <svg width="100%" height="100%" viewBox="0 0 120 120" className="-rotate-90" aria-hidden="true">
+          <circle cx="60" cy="60" r={RING_RADIUS} fill="none" stroke="var(--color-surface-2)" strokeWidth="9" />
           <circle
             cx="60"
             cy="60"
@@ -153,7 +211,7 @@ function ScoreHeader({ eyebrow }: { eyebrow: string }) {
 
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="font-display text-[42px] leading-none font-bold">
-            {mockReport.score}
+            {Math.round(report.overallScore)}
           </span>
           <span className="font-mono text-xs text-fg-muted">/100</span>
         </div>
@@ -164,11 +222,9 @@ function ScoreHeader({ eyebrow }: { eyebrow: string }) {
           {eyebrow}
         </span>
         <h1 className="my-2.5 font-display text-[clamp(1.5rem,3vw,1.9rem)] font-semibold tracking-[-0.02em] text-pretty">
-          {mockReport.headline}
+          {buildHeadline(report.overallScore)}
         </h1>
-        <p className="text-[15px] text-pretty text-fg-2">
-          {mockReport.summary}
-        </p>
+        <p className="text-[15px] text-pretty text-fg-2">{buildSummary(report.overallScore)}</p>
       </div>
     </div>
   );
@@ -185,104 +241,46 @@ function Card({
 }) {
   return (
     <section className="rounded-xl border border-border bg-surface p-5 sm:p-6.5">
-      <h2
-        className={`mb-4 font-display text-[1.1rem] font-semibold ${titleClassName ?? ""}`}
-      >
-        {title}
-      </h2>
+      <h2 className={`mb-4 font-display text-[1.1rem] font-semibold ${titleClassName ?? ""}`}>{title}</h2>
       <div className="flex flex-col gap-3.5">{children}</div>
     </section>
   );
 }
 
-function buildAdherenceNotes(
-  vacancy: VacancyDraft | null,
-  repository: RepositoryDraft | null,
-): typeof mockReport.adherenceNotes {
-  const technologies = vacancy?.profile?.technologies ?? [];
-  if (technologies.length === 0) return mockReport.adherenceNotes;
-
-  const language = repository?.language ?? null;
-  const covered = language
-    ? technologies.filter((technology) =>
-        technology.toLowerCase().includes(language.toLowerCase()),
-      )
-    : [];
-  const missing = technologies.filter(
-    (technology) => !covered.includes(technology),
-  );
-
-  const notes: typeof mockReport.adherenceNotes = [];
-
-  if (repository && language) {
-    notes.push({
-      tone: "good",
-      title: "Aproxima:",
-      text: `${language} é a linguagem principal de ${repository.name}, e a vaga pede ${covered.length > 0 ? covered.join(", ") : "essa base"}.`,
-    });
-  }
-
-  if (missing.length > 0) {
-    notes.push({
-      tone: "gap",
-      title: "Falta:",
-      text: `${missing.slice(0, 4).join(", ")} — a vaga cita e o repositório analisado não evidencia.`,
-    });
-  }
-
-  return notes.length > 0 ? notes : mockReport.adherenceNotes;
-}
-
-function AdherenceCard({
-  vacancy,
-  repository,
-}: {
-  vacancy: VacancyDraft | null;
-  repository: RepositoryDraft | null;
-}) {
-  const notes = buildAdherenceNotes(vacancy, repository);
+function AdherenceCard({ report }: { report: InterviewReport }) {
+  const adherence = Math.round(report.adherenceScore);
+  const topStrength = report.strengths[0];
+  const topGap = report.gaps[0];
 
   return (
     <section className="rounded-xl border border-border bg-surface p-5 sm:p-6.5">
       <div className="mb-3.5 flex items-baseline justify-between gap-3">
-        <h2 className="font-display text-[1.1rem] font-semibold">
-          Aderência do portfólio à vaga
-        </h2>
-        <span className="font-display text-[1.7rem] font-bold text-trail-text">
-          {mockReport.adherence}%
-        </span>
+        <h2 className="font-display text-[1.1rem] font-semibold">Aderência do portfólio à vaga</h2>
+        <span className="font-display text-[1.7rem] font-bold text-trail-text">{adherence}%</span>
       </div>
 
       <div className="mb-4.5 h-3 overflow-hidden rounded-full bg-surface-2">
         <div
           className="h-full animate-grow rounded-full bg-[linear-gradient(90deg,var(--color-trail-500),var(--color-ember-400))]"
-          style={
-            {
-              "--grow-to": `${mockReport.adherence}%`,
-              width: `${mockReport.adherence}%`,
-            } as React.CSSProperties
-          }
+          style={{ "--grow-to": `${adherence}%`, width: `${adherence}%` } as React.CSSProperties}
         />
       </div>
 
       <div className="flex flex-col gap-3">
-        {notes.map((note) => (
-          <Note key={note.title} {...note} />
-        ))}
+        {topStrength && <Note tone="good" {...topStrength} />}
+        {topGap && <Note tone="gap" {...topGap} />}
       </div>
     </section>
   );
 }
 
-function DimensionsCard() {
+function DimensionsCard({ report }: { report: InterviewReport }) {
   return (
     <section className="rounded-xl border border-border bg-surface p-5 sm:p-6.5">
-      <h2 className="mb-4.5 font-display text-[1.1rem] font-semibold">
-        Desempenho por dimensão
-      </h2>
+      <h2 className="mb-4.5 font-display text-[1.1rem] font-semibold">Desempenho por dimensão</h2>
 
       <div className="flex flex-col gap-3.5">
-        {mockReport.dimensions.map((dimension, index) => (
+        {report.dimensionScores.map((dimension, index) => (
           <div key={dimension.label} className="flex items-center gap-3">
             <span className="w-[86px] flex-none text-[13px] text-fg-2 sm:w-[150px] sm:text-[13.5px]">
               {dimension.label}
@@ -304,7 +302,7 @@ function DimensionsCard() {
               />
             </div>
             <span className="w-[30px] text-right font-mono text-[12.5px]">
-              {dimension.score}
+              {Math.round(dimension.score)}
             </span>
           </div>
         ))}
@@ -347,15 +345,7 @@ function NoteIcon({ tone }: { tone: NoteTone }) {
   );
 }
 
-function Note({
-  tone,
-  title,
-  text,
-}: {
-  tone: NoteTone;
-  title: string;
-  text: string;
-}) {
+function Note({ tone, title, text }: { tone: NoteTone; title: string; text: string }) {
   return (
     <div className="flex items-start gap-2.5">
       <NoteIcon tone={tone} />

@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { envValidationSchema } from './config/env.validation';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
@@ -10,6 +8,7 @@ import { CryptoModule } from './crypto/crypto.module';
 import { RepositoriesModule } from './repos/repos.module';
 import { VacanciesModule } from './vacancies/vacancies.module';
 import { AiModule } from './ai/ai.module';
+import { InterviewModule } from './interview/interview.module';
 
 @Module({
   imports: [
@@ -28,8 +27,9 @@ import { AiModule } from './ai/ai.module';
     RepositoriesModule,
     VacanciesModule,
     AiModule,
+    InterviewModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}
