@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Vacancy } from '@prisma/client';
-import { UsersService } from '@users/users.service';
+import { UsersService } from '../users/users.service';
 import { RepositorySummary } from './types/repos-summary';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';

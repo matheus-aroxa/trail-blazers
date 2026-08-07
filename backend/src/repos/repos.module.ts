@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
-import { UsersModule } from '@users/users.module';
+import { UsersModule } from '../users/users.module';
 import { AiModule } from '../ai/ai.module';
 import { RepositoriesController } from './repos.controller';
 import { RepositoriesService } from './repos.service';
