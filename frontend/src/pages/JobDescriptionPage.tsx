@@ -30,6 +30,8 @@ import { paths } from "@routes/paths";
 type Status = "idle" | "saving" | "analyzing" | "saved";
 
 const seniorityLabels: Record<ParsedVacancyProfile["seniorityLevel"], string> = {
+  intern: "Estágio",
+  trainee: "Trainee",
   junior: "Júnior",
   mid: "Pleno",
   senior: "Sênior",

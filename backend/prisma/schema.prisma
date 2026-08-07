@@ -136,6 +136,7 @@ model Report {
   overallScore    Float    @map("overall_score")
   dimensionScores Json     @map("dimension_scores")
   adherenceScore  Float    @map("adherence_score")
+  adherenceNotes  Json?    @map("adherence_notes")
   strengths       Json?
   gaps            Json?
   recommendations Json?

@@ -32,6 +32,11 @@ export class InterviewController {
     return this.sessions.create(req.user.id, dto);
   }
 
+  @Get()
+  async findAll(@Request() req: { user: AuthenticatedUser }) {
+    return this.sessions.findMany(req.user.id);
+  }
+
   @Get(':id')
   async findOne(@Request() req: { user: AuthenticatedUser }, @Param('id') id: string) {
     return this.sessions.findOne(req.user.id, id);

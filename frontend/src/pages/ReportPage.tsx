@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 
 import { InterviewStepper } from "@components/app/InterviewStepper";
 import { ButtonLink } from "@components/ui/Button";
@@ -16,15 +16,19 @@ import {
 import {
   generateReport,
   getReport,
+  getSession,
   InterviewError,
   type InterviewReport,
 } from "@lib/interview-api";
+import { getVacancy, VacancyError } from "@lib/vacancies-api";
 import { paths } from "@routes/paths";
 
 const RING_RADIUS = 54;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 
 const seniorityLabels: Record<string, string> = {
+  intern: "Estágio",
+  trainee: "Trainee",
   junior: "Júnior",
   mid: "Pleno",
   senior: "Sênior",
@@ -73,9 +77,17 @@ function buildSummary(score: number): string {
 }
 
 export function ReportPage() {
-  const [vacancy] = useState(readVacancyDraft);
-  const [repository] = useState(readRepositoryDraft);
-  const [sessionDraft] = useState(readSessionDraft);
+  const { sessionId: historicalId } = useParams<{ sessionId?: string }>();
+
+  const [vacancy, setVacancy] = useState<VacancyDraft | null>(
+    historicalId ? null : readVacancyDraft(),
+  );
+  const [repository, setRepository] = useState<RepositoryDraft | null>(
+    historicalId ? null : readRepositoryDraft(),
+  );
+  const [sessionDraft] = useState(() =>
+    historicalId ? { id: historicalId } : readSessionDraft(),
+  );
 
   const [report, setReport] = useState<InterviewReport | null>(null);
   const [error, setError] = useState<InterviewError | null>(null);
@@ -87,24 +99,62 @@ export function ReportPage() {
 
     (async () => {
       try {
+        if (historicalId) {
+          const session = await getSession(historicalId);
+          const vacancyData = await getVacancy(session.vacancyId);
+
+          setVacancy({
+            id: vacancyData.id,
+            description: vacancyData.rawDescription,
+            profile: vacancyData.parsedProfile,
+          });
+
+          setRepository(
+            session.repo
+              ? {
+                  owner: session.repo.fullName.split("/")[0] ?? "",
+                  name: session.repo.fullName.split("/")[1] ?? session.repo.fullName,
+                  language: session.repo.primaryLanguage,
+                  fileCount: session.repoAnalysis?.fileCount ?? 0,
+                  omittedCount: session.repoAnalysis?.omittedCount ?? 0,
+                  topFiles: session.repoAnalysis?.topFiles ?? [],
+                }
+              : null,
+          );
+
+          const existing = await getReport(historicalId);
+          if (!existing) {
+            throw new InterviewError("Esta entrevista ainda não tem relatório gerado.", {
+              hint: "Volte quando a entrevista estiver concluída.",
+              retryable: false,
+            });
+          }
+          setReport(existing);
+          return;
+        }
+
         const existing = await getReport(sessionDraft.id);
         const result = existing ?? (await generateReport(sessionDraft.id));
         setReport(result);
       } catch (cause: unknown) {
-        setError(
-          cause instanceof InterviewError
-            ? cause
-            : new InterviewError("Não conseguimos gerar o relatório."),
-        );
+        if (cause instanceof InterviewError) {
+          setError(cause);
+        } else if (cause instanceof VacancyError) {
+          setError(
+            new InterviewError(cause.detail, { hint: cause.hint, retryable: cause.retryable }),
+          );
+        } else {
+          setError(new InterviewError("Não conseguimos gerar o relatório."));
+        }
       }
     })();
-  }, [sessionDraft]);
+  }, [sessionDraft, historicalId]);
 
-  if (!vacancy || !sessionDraft) {
+  if (!historicalId && (!vacancy || !sessionDraft)) {
     return <Navigate to={paths.newInterview} replace />;
   }
 
-  if (error?.code === "respostas_pendentes") {
+  if (!historicalId && error?.code === "respostas_pendentes") {
     return <Navigate to={paths.interview} replace />;
   }
 
@@ -249,8 +299,7 @@ function Card({
 
 function AdherenceCard({ report }: { report: InterviewReport }) {
   const adherence = Math.round(report.adherenceScore);
-  const topStrength = report.strengths[0];
-  const topGap = report.gaps[0];
+  const [firstNote, secondNote] = report.adherenceNotes;
 
   return (
     <section className="rounded-xl border border-border bg-surface p-5 sm:p-6.5">
@@ -267,8 +316,8 @@ function AdherenceCard({ report }: { report: InterviewReport }) {
       </div>
 
       <div className="flex flex-col gap-3">
-        {topStrength && <Note tone="good" {...topStrength} />}
-        {topGap && <Note tone="gap" {...topGap} />}
+        {firstNote && <Note tone={adherence >= 60 ? "good" : "gap"} {...firstNote} />}
+        {secondNote && <Note tone={adherence >= 60 ? "good" : "gap"} {...secondNote} />}
       </div>
     </section>
   );

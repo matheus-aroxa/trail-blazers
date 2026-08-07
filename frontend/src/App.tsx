@@ -34,7 +34,7 @@ export default function App() {
               <Route path={paths.newInterview} element={<JobDescriptionPage />} />
               <Route path={paths.repoChooser} element={<RepositoryChooserPage />} />
               <Route path={paths.interview} element={<InterviewPage />} />
-              <Route path={paths.report} element={<ReportPage />} />
+              <Route path={`${paths.report}/:sessionId?`} element={<ReportPage />} />
             </Route>
 
             <Route path="*" element={<GuardedFallback />} />

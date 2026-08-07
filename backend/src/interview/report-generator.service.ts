@@ -10,21 +10,27 @@ const REQUEST_TIMEOUT_MS = 60_000;
 
 const SYSTEM_PROMPT = `
 Você é um recrutador técnico sênior produzindo o relatório final de uma entrevista técnica simulada.
-Você recebe: o perfil da vaga (tecnologias, senioridade, competências-chave, trecho da descrição) e a lista de perguntas feitas com as respectivas respostas do candidato.
+Você recebe: o perfil da vaga (tecnologias, senioridade, competências-chave, trecho da descrição), dados do repositório do candidato (nome, arquivos selecionados e trechos de código usados na entrevista) e a lista de perguntas feitas com as respectivas respostas do candidato.
 
-Avalie o desempenho do candidato de forma honesta e construtiva, como faria um recrutador experiente escrevendo um feedback pós-entrevista. Considere:
-- overallScore (0-100): desempenho geral nas perguntas.
-- adherenceScore (0-100): o quanto o perfil do candidato (visível nas respostas) adere aos requisitos da vaga.
-- dimensionScores: avalie de 2 a 5 dimensões relevantes para ESTA vaga (ex.: "Lógica", "Domínio da stack", "Qualidade das decisões", "Comunicação") com nota 0-100 cada.
-- strengths: pontos fortes concretos, citando o que o candidato disse.
-- gaps: lacunas concretas, incluindo tecnologias da vaga que não apareceram nas respostas.
-- recommendations: ações práticas e específicas para o candidato evoluir.
+Você deve calcular DOIS scores com critérios completamente independentes — não misture um no outro:
 
-Seja específico — cite trechos das respostas quando relevante. Não invente informação que não esteja nas respostas.
+1. overallScore (0-100) e dimensionScores: desempenho do candidato NAS RESPOSTAS da entrevista.
+   - dimensionScores: avalie de 2 a 5 dimensões relevantes para ESTA vaga (ex.: "Lógica", "Domínio da stack", "Qualidade das decisões", "Comunicação") com nota 0-100 cada.
+   - strengths: pontos fortes concretos, citando o que o candidato disse.
+   - gaps: lacunas concretas nas respostas, incluindo tecnologias da vaga que não apareceram.
+   - recommendations: ações práticas e específicas para o candidato evoluir.
+   - Seja específico — cite trechos das respostas quando relevante. Não invente informação que não esteja nas respostas.
+
+2. adherenceScore (0-100) e adherenceNotes: o QUÃO RELEVANTE é o REPOSITÓRIO/PROJETO do candidato para o ESCOPO da vaga. Isto é sobre o projeto em si, NÃO sobre a qualidade das respostas dadas na entrevista. Avalie:
+   - Aderência de stack: as tecnologias, linguagens e frameworks usados no repositório (visíveis nos paths dos arquivos, extensões e trechos de código) batem com as tecnologias exigidas pela vaga?
+   - Aderência de domínio/escopo: o propósito do projeto (inferido pelo nome do repositório, estrutura de pastas e código) tem relação com o tipo de sistema, indústria ou atividades descritas na vaga?
+   - Um projeto tecnicamente bem construído mas em domínio/stack completamente diferente do pedido pela vaga deve receber adherenceScore BAIXO (ex.: um projeto de análise de dados em Python para uma vaga de desenvolvedor web Java tem pouca ou nenhuma aderência, mesmo que o código seja de qualidade). Adherência alta exige convergência real de stack e/ou domínio, não apenas "é um projeto de programação".
+   - adherenceNotes: 1 a 3 notas curtas e concretas explicando o veredito — cite tecnologias/arquivos que bateram ou não bateram, e se o domínio do projeto se relaciona ou não com a vaga.
 
 Responda APENAS com um objeto JSON válido, sem markdown, sem texto adicional, no formato:
 {
   "overallScore": number, "adherenceScore": number,
+  "adherenceNotes": [{ "title": string, "text": string }],
   "dimensionScores": [{ "label": string, "score": number }],
   "strengths": [{ "title": string, "text": string }],
   "gaps": [{ "title": string, "text": string }],
@@ -62,6 +68,11 @@ export class ReportGenerationError extends Error {
 export interface GenerateReportInput {
   rawDescription: string;
   profile: ParsedVacancyProfile;
+  repo: {
+    fullName: string;
+    filePaths: string[];
+    codeSamples: { file: string; excerpt: string }[];
+  };
   answeredQuestions: { type: string; content: string; answer: string }[];
 }
 
@@ -79,6 +90,7 @@ export class ReportGeneratorService {
         seniorityLevel: input.profile.seniorityLevel,
         keyCompetencies: input.profile.keyCompetencies,
       },
+      repo: input.repo,
       answeredQuestions: input.answeredQuestions,
     });
 

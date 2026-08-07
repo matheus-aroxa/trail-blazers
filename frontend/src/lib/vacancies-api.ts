@@ -6,7 +6,7 @@ export const DESCRIPTION_MAX_LENGTH = 10_000;
 
 export interface ParsedVacancyProfile {
   technologies: string[];
-  seniorityLevel: "junior" | "mid" | "senior" | "lead" | "unknown";
+  seniorityLevel: "intern" | "trainee" | "junior" | "mid" | "senior" | "lead" | "unknown";
   keyCompetencies: string[];
   confidence: "high" | "low";
   outOfScope: boolean;

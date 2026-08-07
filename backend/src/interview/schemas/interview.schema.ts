@@ -34,6 +34,11 @@ export type AiQuestion = z.infer<typeof AiQuestionSchema>;
 export const AiReportSchema = z.object({
   overallScore: z.number().min(0).max(100),
   adherenceScore: z.number().min(0).max(100),
+  adherenceNotes: z
+    .array(z.object({ title: z.string(), text: z.string() }))
+    .min(1)
+    .max(4)
+    .default([]),
   dimensionScores: z
     .array(z.object({ label: z.string(), score: z.number().min(0).max(100) }))
     .min(1)

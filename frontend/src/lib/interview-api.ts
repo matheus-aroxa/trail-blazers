@@ -23,10 +23,22 @@ export interface InterviewSession {
   questions: InterviewQuestion[];
 }
 
+export interface InterviewSessionSummary {
+  id: string;
+  status: SessionStatus;
+  createdAt: string;
+  completedAt: string | null;
+  vacancy: { seniorityLevel: string; technologies: string[] };
+  repo: { fullName: string } | null;
+  questionCount: number;
+  report: { overallScore: number; adherenceScore: number } | null;
+}
+
 export interface InterviewReport {
   sessionId: string;
   overallScore: number;
   adherenceScore: number;
+  adherenceNotes: { title: string; text: string }[];
   dimensionScores: { label: string; score: number }[];
   strengths: { title: string; text: string }[];
   gaps: { title: string; text: string }[];
@@ -165,6 +177,10 @@ export async function createSession(params: {
     method: "POST",
     body: JSON.stringify(params),
   });
+}
+
+export async function listSessions(): Promise<InterviewSessionSummary[]> {
+  return request<InterviewSessionSummary[]>("/interview/sessions");
 }
 
 export async function getSession(id: string): Promise<InterviewSession> {

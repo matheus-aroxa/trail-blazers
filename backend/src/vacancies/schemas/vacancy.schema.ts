@@ -3,7 +3,15 @@ import { z } from 'zod';
 export const VACANCY_MIN_LENGTH = 50;
 export const VACANCY_MAX_LENGTH = 10_000;
 
-export const SeniorityLevelSchema = z.enum(['junior', 'mid', 'senior', 'lead', 'unknown']);
+export const SeniorityLevelSchema = z.enum([
+  'intern',
+  'trainee',
+  'junior',
+  'mid',
+  'senior',
+  'lead',
+  'unknown',
+]);
 
 export const ParsingConfidenceSchema = z.enum(['high', 'low']);
 

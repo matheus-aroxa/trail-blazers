@@ -58,7 +58,7 @@ Analise a descrição de vaga fornecida e responda APENAS com um objeto JSON vá
 Schema obrigatório:
 {
   "technologies": string[],        // linguagens, frameworks e ferramentas (máx. 15)
-  "seniorityLevel": "junior" | "mid" | "senior" | "lead" | "unknown",
+  "seniorityLevel": "intern" | "trainee" | "junior" | "mid" | "senior" | "lead" | "unknown",
   "keyCompetencies": string[],     // habilidades e requisitos-chave (máx. 10)
   "confidence": "high" | "low",   // "low" se a stack não ficou clara
   "outOfScope": boolean            // true se a vaga não for de tecnologia
@@ -66,6 +66,9 @@ Schema obrigatório:
 
 Regras:
 - Normalize nomes: "nodejs" → "Node.js", "reactjs" → "React".
+- Use "intern" para vagas de estágio ("estagiário", "internship") — vínculo de estágio durante a graduação, geralmente com carga horária reduzida.
+- Use "trainee" para programas de trainee — contratação efetiva/CLT recém-formado, dentro de um programa estruturado de formação, distinto de estágio e de "junior" comum.
+- NÃO confunda "intern" ou "trainee" com "junior", que é para o primeiro emprego efetivo em nível pleno-iniciante fora de um programa de formação.
 - Se não houver tecnologias claras, use [] e "confidence": "low".
 - Se a vaga não for de tecnologia, retorne "outOfScope": true.
 `.trim();

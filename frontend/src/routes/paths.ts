@@ -12,6 +12,10 @@ export const paths = {
   report: "/entrevista/relatorio",
 } as const;
 
+export function reportPath(sessionId?: string): string {
+  return sessionId ? `${paths.report}/${sessionId}` : paths.report;
+}
+
 export const sectionIds = {
   howItWorks: "como-funciona",
 } as const;

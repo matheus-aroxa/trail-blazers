@@ -1,24 +1,71 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useAuth } from "@auth/useAuth";
 import { AppHeader } from "@components/app/AppHeader";
 import { EmptyTrail } from "@components/app/EmptyTrail";
-import { SessionCard } from "@components/app/SessionCard";
-import { MockBanner, MockTag } from "@components/mock/MockBanner";
+import { SessionList } from "@components/app/SessionList";
 import { ButtonLink } from "@components/ui/Button";
 import { Container } from "@components/ui/Container";
 import { PlusIcon } from "@components/ui/icons";
-import { mockSessions, mockSessionsSummary } from "@mocks/interview-mock";
+import { Spinner } from "@components/ui/Spinner";
+import {
+  InterviewError,
+  listSessions,
+  type InterviewSessionSummary,
+} from "@lib/interview-api";
 import { paths } from "@routes/paths";
+
+function buildSummary(sessions: InterviewSessionSummary[]): string {
+  const scored = sessions
+    .map((session) => session.report?.overallScore)
+    .filter((score): score is number => typeof score === "number");
+
+  const count = sessions.length;
+  const parts = [`${count} ${count === 1 ? "entrevista" : "entrevistas"}`];
+
+  if (scored.length > 0) {
+    const average = Math.round(scored.reduce((sum, score) => sum + score, 0) / scored.length);
+    const best = Math.round(Math.max(...scored));
+    parts.push(`média ${average}/100`, `melhor ${best}`);
+  }
+
+  return parts.join(" · ");
+}
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const [showHistory, setShowHistory] = useState(true);
+  const [sessions, setSessions] = useState<InterviewSessionSummary[] | null>(null);
+  const [error, setError] = useState<InterviewError | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const result = await listSessions();
+        const sorted = [...result].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        if (!cancelled) setSessions(sorted);
+      } catch (cause: unknown) {
+        if (!cancelled) {
+          setError(
+            cause instanceof InterviewError
+              ? cause
+              : new InterviewError("Não conseguimos carregar suas entrevistas."),
+          );
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen animate-rise">
       <div className="sticky top-0 z-30">
-        <MockBanner screen="histórico de entrevistas" />
         <AppHeader />
       </div>
 
@@ -41,36 +88,33 @@ export function DashboardPage() {
             </ButtonLink>
           </div>
 
-          {showHistory ? (
-            <>
-              <div className="mb-6 flex flex-wrap items-center gap-3">
-                <p className="font-mono text-[12.5px] text-fg-muted">
-                  {mockSessionsSummary}
-                </p>
-                <MockTag />
-              </div>
-
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-4">
-                {mockSessions.map((session) => (
-                  <SessionCard key={session.id} session={session} />
-                ))}
-              </div>
-            </>
-          ) : (
-            <EmptyTrail />
+          {error && (
+            <p className="mt-8 text-center text-[14.5px] text-fg-2">{error.detail}</p>
           )}
 
-          <div className="mt-10 flex justify-center">
-            <button
-              type="button"
-              onClick={() => setShowHistory((current) => !current)}
-              className="rounded-full border border-dashed border-border px-3.5 py-1.5 font-mono text-[11px] tracking-[0.05em] text-fg-muted transition-colors duration-200 hover:border-fg-muted hover:text-fg-2"
-            >
-              {showHistory
-                ? "demo: ver estado vazio"
-                : "demo: ver com entrevistas"}
-            </button>
-          </div>
+          {!error && sessions === null && (
+            <div className="mt-14 flex justify-center">
+              <Spinner label="Carregando suas entrevistas..." />
+            </div>
+          )}
+
+          {!error && sessions !== null && (
+            <>
+              {sessions.length > 0 ? (
+                <>
+                  <div className="mb-6 flex flex-wrap items-center gap-3">
+                    <p className="font-mono text-[12.5px] text-fg-muted">
+                      {buildSummary(sessions)}
+                    </p>
+                  </div>
+
+                  <SessionList sessions={sessions} />
+                </>
+              ) : (
+                <EmptyTrail />
+              )}
+            </>
+          )}
         </Container>
       </main>
     </div>

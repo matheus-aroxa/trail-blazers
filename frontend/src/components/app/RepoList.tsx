@@ -1,11 +1,10 @@
 import { useState } from "react";
 
-import { cn } from "@lib/cn";
 import type { RepoSummary } from "@lib/repositories-api";
 import { RepositoryCard } from "@components/app/RepoCard";
+import { Pagination } from "@components/ui/Pagination";
 
 const PAGE_SIZE = 6;
-const PAGE_WINDOW = 3;
 
 interface RepositoryListProps {
   repositories: RepoSummary[];
@@ -50,7 +49,8 @@ export function RepositoryList({
       </div>
 
       {pageCount > 1 && (
-        <RepositoryPagination
+        <Pagination
+          ariaLabel="Paginação dos repositórios"
           page={currentPage}
           pageCount={pageCount}
           total={repositories.length}
@@ -60,98 +60,5 @@ export function RepositoryList({
         />
       )}
     </div>
-  );
-}
-
-function pageWindow(page: number, pageCount: number): number[] {
-  const size = Math.min(PAGE_WINDOW, pageCount);
-  const first = Math.min(
-    Math.max(1, page - Math.floor(size / 2)),
-    pageCount - size + 1,
-  );
-
-  return Array.from({ length: size }, (_, index) => first + index);
-}
-
-const pageButton =
-  "flex size-8 flex-none items-center justify-center rounded-md border font-mono text-[12.5px] " +
-  "transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-45";
-
-const stepButton = cn(
-  pageButton,
-  "border-border text-fg-2",
-  "enabled:hover:border-trail-500 enabled:hover:text-trail-text",
-);
-
-interface RepositoryPaginationProps {
-  page: number;
-  pageCount: number;
-  total: number;
-  rangeStart: number;
-  rangeEnd: number;
-  onChange: (page: number) => void;
-}
-
-function RepositoryPagination({
-  page,
-  pageCount,
-  total,
-  rangeStart,
-  rangeEnd,
-  onChange,
-}: RepositoryPaginationProps) {
-  return (
-    <nav
-      aria-label="Paginação dos repositórios"
-      className="mt-6 flex flex-wrap items-center justify-between gap-3"
-    >
-      <p aria-live="polite" className="font-mono text-[11.5px] text-fg-muted">
-        {rangeStart}–{rangeEnd} de {total} · página {page} de {pageCount}
-      </p>
-
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => onChange(page - 1)}
-          disabled={page === 1}
-          aria-label="Página anterior"
-          className={stepButton}
-        >
-          ←
-        </button>
-
-        {pageWindow(page, pageCount).map((number) => {
-          const current = number === page;
-
-          return (
-            <button
-              key={number}
-              type="button"
-              onClick={() => onChange(number)}
-              aria-label={`Página ${number}`}
-              aria-current={current ? "page" : undefined}
-              className={cn(
-                pageButton,
-                current
-                  ? "border-trail-500 bg-trail-500 font-semibold text-on-trail"
-                  : "border-border text-fg-2 hover:border-trail-500 hover:text-trail-text",
-              )}
-            >
-              {number}
-            </button>
-          );
-        })}
-
-        <button
-          type="button"
-          onClick={() => onChange(page + 1)}
-          disabled={page === pageCount}
-          aria-label="Próxima página"
-          className={stepButton}
-        >
-          →
-        </button>
-      </div>
-    </nav>
   );
 }
